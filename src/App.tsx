@@ -1,34 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import ProtectedRoute from './components/ProtectedRoute'
+import LoginPage from './pages/LoginPage'
+import DashboardPage from './pages/DashboardPage'
+import BeneficiairesPage from './pages/BeneficiairesPage'
+import NouveauBeneficiairePage from './pages/NouveauBeneficiairePage'
+import BeneficiairePage from './pages/BeneficiairePage'
+import PlanningPage from './pages/PlanningPage'
+import PlanningGlobalPage from './pages/PlanningGlobalPage'
+import CarnetPage from './pages/CarnetPage'
+import CarnetGlobalPage from './pages/CarnetGlobalPage'
+import DevisPage from './pages/DevisPage'
+import ContratPage from './pages/ContratPage'
+import ProfilEditPage from './pages/ProfilEditPage'
+import ProfilPublicPage from './pages/ProfilPublicPage'
+import BadgesPage from './pages/BadgesPage'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <BrowserRouter>
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/profil/public" element={<ProfilPublicPage />} />
+
+        {/* Protégé */}
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/beneficiaires" element={<ProtectedRoute><BeneficiairesPage /></ProtectedRoute>} />
+        <Route path="/beneficiaires/nouveau" element={<ProtectedRoute><NouveauBeneficiairePage /></ProtectedRoute>} />
+        <Route path="/beneficiaires/:id" element={<ProtectedRoute><BeneficiairePage /></ProtectedRoute>} />
+        <Route path="/beneficiaires/:id/planning" element={<ProtectedRoute><PlanningPage /></ProtectedRoute>} />
+        <Route path="/beneficiaires/:id/carnet" element={<ProtectedRoute><CarnetPage /></ProtectedRoute>} />
+        <Route path="/planning" element={<ProtectedRoute><PlanningGlobalPage /></ProtectedRoute>} />
+        <Route path="/carnet" element={<ProtectedRoute><CarnetGlobalPage /></ProtectedRoute>} />
+        <Route path="/devis" element={<ProtectedRoute><DevisPage /></ProtectedRoute>} />
+        <Route path="/contrat" element={<ProtectedRoute><ContratPage /></ProtectedRoute>} />
+        <Route path="/profil" element={<ProtectedRoute><ProfilEditPage /></ProtectedRoute>} />
+        <Route path="/badges" element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
