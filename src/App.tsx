@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
+import OnboardingPage from './pages/OnboardingPage'
 import DashboardPage from './pages/DashboardPage'
 import BeneficiairesPage from './pages/BeneficiairesPage'
 import NouveauBeneficiairePage from './pages/NouveauBeneficiairePage'
@@ -22,6 +23,9 @@ function App() {
         {/* Public */}
         <Route path="/" element={<LoginPage />} />
         <Route path="/profil/public" element={<ProfilPublicPage />} />
+
+        {/* Onboarding (connecté mais pas encore configuré) */}
+        <Route path="/onboarding" element={<OnboardingPage />} />
 
         {/* Protégé */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

@@ -1,52 +1,110 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
-export interface Profil {
+interface Disponibilite {
+  jour: string
+  matin: boolean
+  apresMidi: boolean
+  soir: boolean
+  nuit: boolean
+}
+
+interface ProfilUtilisateur {
+  // Identité
   prenom: string
   nom: string
+  nomUsage: string
   photo: string
-  bio: string
+  
+  // Coordonnées
   telephone: string
   email: string
-  zone: string
-  services: string[]
-  tarifMin: number
-  tarifMax: number
-  experience: number
-  diplomes: string
+  adresse: string
+  ville: string
+  codePostal: string
+  
+  // Infos administratives
+  numeroSecu: string
+  numeroCesu: string
+  dateNaissance: string
+  
+  // Diplômes & formations
+  diplomes: string[]
+  autresDiplomes: string
+  
+  // Profil pro
+  experience: string
+  typeActivite: string[]
+  salaireMinimum: number
+  
+  // Disponibilités
+  disponibilites: Disponibilite[]
+  
+  // Légal
+  cgvAcceptees: boolean
+  rgpdAcceptee: boolean
+  dateAcceptation: string
+  
+  // Onboarding
+  onboardingComplete: boolean
 }
 
 interface ProfilStore {
-  profil: Profil
-  updateProfil: (data: Partial<Profil>) => void
+  profil: ProfilUtilisateur
+  updateProfil: (data: Partial<ProfilUtilisateur>) => void
+  completeOnboarding: () => void
+  resetProfil: () => void
 }
 
-const defaultProfil: Profil = {
-  prenom: 'Marie',
-  nom: 'Durand',
+const defaultProfil: ProfilUtilisateur = {
+  prenom: '',
+  nom: '',
+  nomUsage: '',
   photo: '',
-  bio: 'Auxiliaire de vie passionnée avec 5 ans d\'expérience. Je propose un accompagnement bienveillant et personnalisé.',
-  telephone: '06 12 34 56 78',
-  email: 'marie.durand@email.com',
-  zone: 'Paris et proche banlieue (20km)',
-  services: ['Aide à la toilette', 'Préparation des repas', 'Compagnie'],
-  tarifMin: 14,
-  tarifMax: 18,
-  experience: 5,
-  diplomes: 'DEAES (Diplôme d\'État d\'Accompagnant Éducatif et Social)',
+  telephone: '',
+  email: '',
+  adresse: '',
+  ville: '',
+  codePostal: '',
+  numeroSecu: '',
+  numeroCesu: '',
+  dateNaissance: '',
+  diplomes: [],
+  autresDiplomes: '',
+  experience: '',
+  typeActivite: [],
+  salaireMinimum: 12,
+  disponibilites: [
+    { jour: 'Lundi', matin: false, apresMidi: false, soir: false, nuit: false },
+    { jour: 'Mardi', matin: false, apresMidi: false, soir: false, nuit: false },
+    { jour: 'Mercredi', matin: false, apresMidi: false, soir: false, nuit: false },
+    { jour: 'Jeudi', matin: false, apresMidi: false, soir: false, nuit: false },
+    { jour: 'Vendredi', matin: false, apresMidi: false, soir: false, nuit: false },
+    { jour: 'Samedi', matin: false, apresMidi: false, soir: false, nuit: false },
+    { jour: 'Dimanche', matin: false, apresMidi: false, soir: false, nuit: false },
+  ],
+  cgvAcceptees: false,
+  rgpdAcceptee: false,
+  dateAcceptation: '',
+  onboardingComplete: false,
 }
 
-const getInitialProfil = (): Profil => {
-  const stored = localStorage.getItem('profil')
-  return stored ? JSON.parse(stored) : defaultProfil
-}
-
-export const useProfil = create<ProfilStore>((set) => ({
-  profil: getInitialProfil(),
-  
-  updateProfil: (data) =>
-    set((state) => {
-      const updated = { ...state.profil, ...data }
-      localStorage.setItem('profil', JSON.stringify(updated))
-      return { profil: updated }
+export const useProfil = create<ProfilStore>()(
+  persist(
+    (set) => ({
+      profil: defaultProfil,
+      updateProfil: (data) =>
+        set((state) => ({
+          profil: { ...state.profil, ...data },
+        })),
+      completeOnboarding: () =>
+        set((state) => ({
+          profil: { ...state.profil, onboardingComplete: true },
+        })),
+      resetProfil: () => set({ profil: defaultProfil }),
     }),
-}))
+    {
+      name: 'cesucare-profil',
+    }
+  )
+)

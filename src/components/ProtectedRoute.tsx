@@ -1,12 +1,25 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../store/useAuth'
+import { useProfil } from '../store/useProfil'
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth()
+interface Props {
+  children: React.ReactNode
+}
 
-  if (!isAuthenticated) {
+export default function ProtectedRoute({ children }: Props) {
+  const { user } = useAuth()
+  const { profil } = useProfil()
+
+  // Pas connecté → Login
+  if (!user) {
     return <Navigate to="/" replace />
   }
 
+  // Connecté mais onboarding pas fait → Onboarding
+  if (!profil.onboardingComplete) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  // Tout bon → Afficher la page
   return <>{children}</>
 }
