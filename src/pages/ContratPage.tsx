@@ -120,6 +120,7 @@ export default function ContratPage() {
   const { profil } = useProfil()
   const [etape, setEtape] = useState(1)
   const [langue, setLangue] = useState<Langue>('fr')
+  const [showPartage, setShowPartage] = useState(false)
   const totalEtapes = 6
 
   const [contrat, setContrat] = useState<ContratData>({
@@ -437,6 +438,78 @@ export default function ContratPage() {
     doc.save(`contrat-cesu-${contrat.salarie.nomNaissance || 'salarie'}.pdf`)
   }
 
+  // Générer le message de partage pour le contrat
+  const genererMessageContrat = () => {
+    const message = `Bonjour ${contrat.employeur.prenom} ${contrat.employeur.nomNaissance},
+
+Suite à notre échange, voici le récapitulatif du contrat de travail CESU :
+
+📋 *CONTRAT CDI - Aide à domicile*
+━━━━━━━━━━━━━━━━━━━━━
+👤 Employeur : ${contrat.employeur.prenom} ${contrat.employeur.nomNaissance}
+🧑‍⚕️ Salarié(e) : ${contrat.salarie.prenom} ${contrat.salarie.nomNaissance}
+
+📅 Date d'embauche : ${contrat.dateEmbauche}
+📍 Lieu : ${contrat.lieuPrincipal.ville}
+
+💼 Poste : ${contrat.emploi}
+📊 Classification : ${contrat.classification}
+
+⏰ Durée : ${contrat.heuresHebdo}h / semaine
+💰 Salaire : ${contrat.salaireHoraireNet.toFixed(2)}€ net/h
+
+😴 Repos : ${contrat.reposHebdo}
+━━━━━━━━━━━━━━━━━━━━━
+
+📄 Je vous envoie le contrat PDF complet pour relecture.
+✍️ À imprimer en 2 exemplaires et signer avec "Lu et approuvé".
+
+N'hésitez pas si vous avez des questions !
+Cordialement`
+
+    return message
+  }
+
+  // Partage WhatsApp
+  const partagerWhatsApp = () => {
+    const message = genererMessageContrat()
+    const numero = contrat.employeur.telephone.replace(/\s/g, '').replace(/^0/, '33')
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+  }
+
+  // Partage WhatsApp sans numéro
+  const partagerWhatsAppSansNumero = () => {
+    const message = genererMessageContrat()
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+  }
+
+  // Partage Email
+  const partagerEmail = () => {
+    const sujet = `Contrat de travail CESU - ${contrat.dateEmbauche}`
+    const corps = genererMessageContrat().replace(/\*/g, '').replace(/━/g, '-')
+    const mailto = `mailto:${contrat.employeur.email}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`
+    window.location.href = mailto
+  }
+
+  // Copier le message
+  const copierMessage = async () => {
+    const message = genererMessageContrat().replace(/\*/g, '')
+    try {
+      await navigator.clipboard.writeText(message)
+      alert(langue === 'fr' ? 'Message copié !' : 'تم النسخ!')
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = message
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      alert(langue === 'fr' ? 'Message copié !' : 'تم النسخ!')
+    }
+  }
+
   // Labels des étapes
   const etapesTitres = [
     { fr: 'Identités', ar: 'الهويات' },
@@ -448,23 +521,119 @@ export default function ContratPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-teal-50">
-      {/* Header sticky */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-lg mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Link to="/documents" className="text-teal-600 hover:text-teal-700 font-medium">
+    <div className="min-h-screen bg-gray-50">
+      {/* Modal de partage */}
+      {showPartage && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900">
+                📤 {langue === 'fr' ? 'Partager le contrat' : 'شارك الكونترا'}
+              </h3>
+              <button
+                onClick={() => setShowPartage(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              {langue === 'fr' 
+                ? 'Envoyez le récapitulatif du contrat à l\'employeur :' 
+                : 'صيفط ملخص الكونترا للمشغل:'}
+            </p>
+
+            <div className="space-y-3">
+              {/* WhatsApp avec numéro */}
+              {contrat.employeur.telephone && (
+                <button
+                  onClick={partagerWhatsApp}
+                  className="w-full flex items-center gap-4 p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition"
+                >
+                  <span className="text-2xl">📱</span>
+                  <div className="text-left">
+                    <p className="font-medium">WhatsApp</p>
+                    <p className="text-sm text-green-100">
+                      {langue === 'fr' 
+                        ? `Envoyer à ${contrat.employeur.prenom}` 
+                        : `صيفط لـ ${contrat.employeur.prenom}`}
+                    </p>
+                  </div>
+                </button>
+              )}
+
+              {/* WhatsApp sans numéro */}
+              {!contrat.employeur.telephone && (
+                <button
+                  onClick={partagerWhatsAppSansNumero}
+                  className="w-full flex items-center gap-4 p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition"
+                >
+                  <span className="text-2xl">📱</span>
+                  <div className="text-left">
+                    <p className="font-medium">WhatsApp</p>
+                    <p className="text-sm text-green-100">
+                      {langue === 'fr' ? 'Choisir un contact' : 'ختار واحد'}
+                    </p>
+                  </div>
+                </button>
+              )}
+
+              {/* Email */}
+              <button
+                onClick={partagerEmail}
+                className="w-full flex items-center gap-4 p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition"
+              >
+                <span className="text-2xl">📧</span>
+                <div className="text-left">
+                  <p className="font-medium">Email</p>
+                  <p className="text-sm text-blue-100">
+                    {contrat.employeur.email 
+                      ? (langue === 'fr' ? `Envoyer à ${contrat.employeur.email}` : `صيفط لـ ${contrat.employeur.email}`)
+                      : (langue === 'fr' ? 'Ouvrir l\'application mail' : 'فتح الإيميل')}
+                  </p>
+                </div>
+              </button>
+
+              {/* Copier */}
+              <button
+                onClick={copierMessage}
+                className="w-full flex items-center gap-4 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
+              >
+                <span className="text-2xl">📋</span>
+                <div className="text-left">
+                  <p className="font-medium">{langue === 'fr' ? 'Copier le message' : 'نسخ الرسالة'}</p>
+                  <p className="text-sm text-gray-500">
+                    {langue === 'fr' ? 'Pour coller ailleurs' : 'باش تلصقها فبلاصة أخرى'}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowPartage(false)}
+              className="w-full mt-6 py-3 text-gray-500 font-medium"
+            >
+              {langue === 'fr' ? 'Fermer' : 'سد'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header avec fond teal */}
+      <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white">
+        <div className="max-w-lg mx-auto px-4 pt-4 pb-8">
+          <div className="flex items-center justify-between mb-4">
+            <Link to="/documents" className="text-white/80 hover:text-white font-medium">
               ← {t('retour', langue)}
             </Link>
             
             {/* Switch de langue */}
-            <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
+            <div className="flex items-center gap-1 bg-white/20 rounded-full p-1">
               <button
                 onClick={() => setLangue('fr')}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                  langue === 'fr'
-                    ? 'bg-white text-teal-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
+                  langue === 'fr' ? 'bg-white text-teal-700' : 'text-white/80 hover:text-white'
                 }`}
               >
                 🇫🇷 FR
@@ -472,9 +641,7 @@ export default function ContratPage() {
               <button
                 onClick={() => setLangue('ar')}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                  langue === 'ar'
-                    ? 'bg-white text-teal-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
+                  langue === 'ar' ? 'bg-white text-teal-700' : 'text-white/80 hover:text-white'
                 }`}
               >
                 🇲🇦 عربي
@@ -482,15 +649,18 @@ export default function ContratPage() {
             </div>
           </div>
           
-          <h1 className="text-center text-lg font-bold text-gray-900 mt-2">
+          <h1 className="text-2xl font-bold">
             📋 {langue === 'fr' ? 'Contrat CESU' : 'كونترا CESU'}
           </h1>
+          <p className="text-teal-100 mt-1">
+            {langue === 'fr' ? 'Générez votre contrat de travail' : 'صنع الكونترا ديال الخدمة'}
+          </p>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-lg mx-auto px-4 py-6 pb-32">
+      <main className="max-w-lg mx-auto px-4 -mt-4 pb-32">
         {/* Barre de progression */}
-        <div className="mb-6">
+        <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
           <div className="flex justify-between mb-2">
             {etapesTitres.map((titre, index) => (
               <button
@@ -499,7 +669,7 @@ export default function ContratPage() {
                 className="flex flex-col items-center"
               >
                 <div
-                  className={`w-10 h-10 rounded-full font-bold flex items-center justify-center transition ${
+                  className={`w-9 h-9 rounded-full font-bold text-sm flex items-center justify-center transition ${
                     index + 1 === etape
                       ? 'bg-teal-600 text-white shadow-lg scale-110'
                       : index + 1 < etape
@@ -1109,13 +1279,13 @@ export default function ContratPage() {
           <button
             onClick={prevEtape}
             disabled={etape === 1}
-            className={`flex-1 py-3 rounded-xl font-medium transition ${
+            className={`py-3 px-4 rounded-xl font-medium transition ${
               etape === 1
                 ? 'bg-gray-100 text-gray-400'
                 : 'border-2 border-teal-600 text-teal-600'
             }`}
           >
-            {t('precedent', langue)}
+            ←
           </button>
 
           {etape < totalEtapes ? (
@@ -1126,12 +1296,20 @@ export default function ContratPage() {
               {t('suivant', langue)}
             </button>
           ) : (
-            <button
-              onClick={genererPDF}
-              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-green-700 transition shadow-lg"
-            >
-              {t('genererPDF', langue)}
-            </button>
+            <div className="flex-1 flex gap-2">
+              <button
+                onClick={() => setShowPartage(true)}
+                className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold hover:from-blue-600 hover:to-purple-600 transition shadow-lg flex items-center justify-center gap-2"
+              >
+                📤 {langue === 'fr' ? 'Partager' : 'شارك'}
+              </button>
+              <button
+                onClick={genererPDF}
+                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-green-700 transition shadow-lg flex items-center justify-center gap-2"
+              >
+                📥 PDF
+              </button>
+            </div>
           )}
         </div>
       </div>

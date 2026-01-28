@@ -49,6 +49,7 @@ function calculerCoutEmployeur(tauxNet: number): number {
 export default function DevisPage() {
   const [langue, setLangue] = useState<Langue>('fr')
   const [etape, setEtape] = useState(1)
+  const [showPartage, setShowPartage] = useState(false)
   const totalEtapes = 4
 
   const [devis, setDevis] = useState<DevisData>({
@@ -269,6 +270,78 @@ export default function DevisPage() {
     doc.save(`devis-${devis.clientNom || 'client'}-${devis.dateDevis}.pdf`)
   }
 
+  // Générer le message de partage
+  const genererMessage = () => {
+    const message = `Bonjour ${devis.clientPrenom} ${devis.clientNom},
+
+Suite à notre échange, voici le récapitulatif de mon devis pour des services d'aide à domicile :
+
+📋 *DEVIS - Aide à domicile*
+━━━━━━━━━━━━━━━━━━━━━
+📅 Date : ${devis.dateDevis}
+⏱️ Volume : ${heuresCalculees} heures
+
+💰 *Tarification horaire :*
+• Salaire net versé : ${devis.tauxHoraireNet.toFixed(2)}€/h
+• Coût employeur : ${coutEmployeur.toFixed(2)}€/h
+
+💵 *Total :*
+• Sans avantage fiscal : *${totalDevis.toFixed(2)}€*
+• Après crédit d'impôt 50% : *${totalApresCredit.toFixed(2)}€*
+━━━━━━━━━━━━━━━━━━━━━
+
+ℹ️ Ces montants sont indicatifs (10% CP inclus).
+📄 Je vous envoie également le devis PDF détaillé.
+
+Ce devis est valable ${devis.validiteJours} jours.
+
+N'hésitez pas si vous avez des questions !
+Cordialement`
+
+    return message
+  }
+
+  // Partage WhatsApp
+  const partagerWhatsApp = () => {
+    const message = genererMessage()
+    const numero = devis.clientTelephone.replace(/\s/g, '').replace(/^0/, '33')
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+  }
+
+  // Partage WhatsApp sans numéro (juste copier)
+  const partagerWhatsAppSansNumero = () => {
+    const message = genererMessage()
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+  }
+
+  // Partage Email
+  const partagerEmail = () => {
+    const sujet = `Devis aide à domicile - ${devis.dateDevis}`
+    const corps = genererMessage().replace(/\*/g, '').replace(/━/g, '-')
+    const mailto = `mailto:${devis.clientEmail}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`
+    window.location.href = mailto
+  }
+
+  // Copier le message
+  const copierMessage = async () => {
+    const message = genererMessage().replace(/\*/g, '')
+    try {
+      await navigator.clipboard.writeText(message)
+      alert(langue === 'fr' ? 'Message copié !' : 'تم النسخ!')
+    } catch {
+      // Fallback pour les navigateurs qui ne supportent pas clipboard
+      const textarea = document.createElement('textarea')
+      textarea.value = message
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      alert(langue === 'fr' ? 'Message copié !' : 'تم النسخ!')
+    }
+  }
+
   // Labels des étapes
   const etapesTitres = [
     { fr: 'Client', ar: 'الزبون' },
@@ -279,6 +352,105 @@ export default function DevisPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-teal-50">
+      {/* Modal de partage */}
+      {showPartage && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 transform transition-all">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900">
+                📤 {langue === 'fr' ? 'Partager le devis' : 'شارك الديفي'}
+              </h3>
+              <button
+                onClick={() => setShowPartage(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              {langue === 'fr' 
+                ? 'Envoyez le récapitulatif du devis à votre client :' 
+                : 'صيفط ملخص الديفي للزبون ديالك:'}
+            </p>
+
+            <div className="space-y-3">
+              {/* WhatsApp avec numéro */}
+              {devis.clientTelephone && (
+                <button
+                  onClick={partagerWhatsApp}
+                  className="w-full flex items-center gap-4 p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition"
+                >
+                  <span className="text-2xl">📱</span>
+                  <div className="text-left">
+                    <p className="font-medium">WhatsApp</p>
+                    <p className="text-sm text-green-100">
+                      {langue === 'fr' 
+                        ? `Envoyer à ${devis.clientPrenom}` 
+                        : `صيفط لـ ${devis.clientPrenom}`}
+                    </p>
+                  </div>
+                </button>
+              )}
+
+              {/* WhatsApp sans numéro */}
+              {!devis.clientTelephone && (
+                <button
+                  onClick={partagerWhatsAppSansNumero}
+                  className="w-full flex items-center gap-4 p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl transition"
+                >
+                  <span className="text-2xl">📱</span>
+                  <div className="text-left">
+                    <p className="font-medium">WhatsApp</p>
+                    <p className="text-sm text-green-100">
+                      {langue === 'fr' ? 'Choisir un contact' : 'ختار واحد'}
+                    </p>
+                  </div>
+                </button>
+              )}
+
+              {/* Email */}
+              <button
+                onClick={partagerEmail}
+                className="w-full flex items-center gap-4 p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition"
+              >
+                <span className="text-2xl">📧</span>
+                <div className="text-left">
+                  <p className="font-medium">Email</p>
+                  <p className="text-sm text-blue-100">
+                    {devis.clientEmail 
+                      ? (langue === 'fr' ? `Envoyer à ${devis.clientEmail}` : `صيفط لـ ${devis.clientEmail}`)
+                      : (langue === 'fr' ? 'Ouvrir l\'application mail' : 'فتح الإيميل')}
+                  </p>
+                </div>
+              </button>
+
+              {/* Copier */}
+              <button
+                onClick={copierMessage}
+                className="w-full flex items-center gap-4 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition"
+              >
+                <span className="text-2xl">📋</span>
+                <div className="text-left">
+                  <p className="font-medium">{langue === 'fr' ? 'Copier le message' : 'نسخ الرسالة'}</p>
+                  <p className="text-sm text-gray-500">
+                    {langue === 'fr' ? 'Pour coller ailleurs' : 'باش تلصقها فبلاصة أخرى'}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* Bouton fermer */}
+            <button
+              onClick={() => setShowPartage(false)}
+              className="w-full mt-6 py-3 text-gray-500 font-medium"
+            >
+              {langue === 'fr' ? 'Fermer' : 'سد'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-lg mx-auto px-4 py-3">
@@ -886,11 +1058,11 @@ export default function DevisPage() {
           <button
             onClick={prevEtape}
             disabled={etape === 1}
-            className={`flex-1 py-3 rounded-xl font-medium transition ${
+            className={`py-3 px-4 rounded-xl font-medium transition ${
               etape === 1 ? 'bg-gray-100 text-gray-400' : 'border-2 border-teal-600 text-teal-600'
             }`}
           >
-            {langue === 'fr' ? '← Précédent' : '← السابق'}
+            ←
           </button>
 
           {etape < totalEtapes ? (
@@ -901,12 +1073,20 @@ export default function DevisPage() {
               {langue === 'fr' ? 'Suivant →' : 'التالي →'}
             </button>
           ) : (
-            <button
-              onClick={genererPDF}
-              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-green-700 transition shadow-lg"
-            >
-              📥 {langue === 'fr' ? 'Générer PDF' : 'صيفط PDF'}
-            </button>
+            <div className="flex-1 flex gap-2">
+              <button
+                onClick={() => setShowPartage(true)}
+                className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold hover:from-blue-600 hover:to-purple-600 transition shadow-lg flex items-center justify-center gap-2"
+              >
+                📤 {langue === 'fr' ? 'Partager' : 'شارك'}
+              </button>
+              <button
+                onClick={genererPDF}
+                className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-green-700 transition shadow-lg flex items-center justify-center gap-2"
+              >
+                📥 PDF
+              </button>
+            </div>
           )}
         </div>
       </div>

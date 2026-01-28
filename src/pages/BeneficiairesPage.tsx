@@ -1,127 +1,179 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useBeneficiaires } from '../store/useBeneficiaires'
-import Layout from '../components/Layout'
+import BottomNav from '../components/BottomNav'
 
 export default function BeneficiairesPage() {
-  const { beneficiaires, supprimer } = useBeneficiaires()
+  const { beneficiaires } = useBeneficiaires()
+  const [filtre, setFiltre] = useState<'tous' | 'actif' | 'pause'>('tous')
+  const [recherche, setRecherche] = useState('')
 
-  const handleDelete = (id: number, prenom: string) => {
-    if (confirm(`Supprimer ${prenom} de ta liste ?`)) {
-      supprimer(id)
+  const beneficiairesFiltres = beneficiaires.filter(b => {
+    if (filtre !== 'tous' && b.statut !== filtre) return false
+    if (recherche) {
+      const search = recherche.toLowerCase()
+      return (
+        b.nom.toLowerCase().includes(search) ||
+        b.prenom.toLowerCase().includes(search) ||
+        b.ville?.toLowerCase().includes(search)
+      )
     }
-  }
+    return true
+  })
+
+  const nbActifs = beneficiaires.filter(b => b.statut === 'actif').length
+  const nbPause = beneficiaires.filter(b => b.statut === 'pause').length
+
+  // Calcul heures totales
+  let heuresTotal = 0
+  let revenuTotal = 0
+  beneficiaires.filter(b => b.statut === 'actif').forEach(b => {
+    b.creneauxHabituels?.forEach(c => {
+      const [hDebut, mDebut] = c.heureDebut.split(':').map(Number)
+      const [hFin, mFin] = c.heureFin.split(':').map(Number)
+      const duree = (hFin * 60 + mFin - hDebut * 60 - mDebut) / 60
+      heuresTotal += duree
+      revenuTotal += duree * b.tauxHoraireNet
+    })
+  })
+
+  const avatarColors = ['bg-indigo-500', 'bg-pink-500', 'bg-cyan-500', 'bg-orange-500', 'bg-violet-500']
 
   return (
-    <Layout>
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white pb-24">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-40">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">👥 Mes bénéficiaires</h1>
-            <p className="text-sm text-gray-500">
-              {beneficiaires.length} bénéficiaire{beneficiaires.length > 1 ? 's' : ''}
-            </p>
+      <header className="bg-white px-6 pt-14 pb-6 shadow-sm">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Bénéficiaires</h1>
+              <p className="text-slate-400 text-sm mt-1">
+                {nbActifs} actif{nbActifs > 1 ? 's' : ''} · {heuresTotal.toFixed(0)}h/semaine
+              </p>
+            </div>
+            <div className="bg-slate-800 text-white px-4 py-2 rounded-xl text-right">
+              <p className="text-lg font-bold">{(revenuTotal * 4).toFixed(0)}€</p>
+              <p className="text-slate-400 text-xs">par mois</p>
+            </div>
           </div>
-          <Link
-            to="/beneficiaires/nouveau"
-            className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center text-2xl hover:bg-teal-700 transition shadow-lg"
-          >
-            +
-          </Link>
         </div>
       </header>
 
-      {/* Contenu */}
-      <main className="px-4 py-6 max-w-lg mx-auto">
-        {beneficiaires.length > 0 ? (
-          <div className="space-y-3">
-            {beneficiaires.map((b) => (
-              <div
-                key={b.id}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-              >
-                {/* Carte principale - cliquable */}
-                <Link
-                  to={`/beneficiaires/${b.id}`}
-                  className="flex items-center gap-4 p-4 hover:bg-gray-50 transition"
-                >
-                  {/* Avatar */}
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white text-xl font-bold shadow">
-                    {b.prenom?.[0]?.toUpperCase() || '?'}
-                  </div>
+      <main className="max-w-lg mx-auto px-4 py-5 space-y-4">
+        {/* Recherche */}
+        <div className="relative">
+          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher..."
+            className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08)] border border-slate-100"
+          />
+        </div>
 
-                  {/* Infos */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">
-                      {b.prenom} {b.nom}
-                    </h3>
-                    <p className="text-sm text-gray-500 truncate">
-                      {b.adresse || 'Adresse non renseignée'}
-                    </p>
-                    {b.telephone && (
-                      <p className="text-sm text-teal-600">{b.telephone}</p>
+        {/* Filtres */}
+        <div className="flex gap-2">
+          {[
+            { key: 'tous', label: 'Tous', count: beneficiaires.length },
+            { key: 'actif', label: 'Actifs', count: nbActifs },
+            { key: 'pause', label: 'En pause', count: nbPause },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFiltre(f.key as typeof filtre)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                filtre === f.key
+                  ? 'bg-slate-800 text-white shadow-lg shadow-slate-300/30'
+                  : 'bg-white text-slate-500 shadow-sm hover:shadow-md border border-slate-100'
+              }`}
+            >
+              {f.label} ({f.count})
+            </button>
+          ))}
+        </div>
+
+        {/* Liste */}
+        {beneficiairesFiltres.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-slate-100">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
+              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <p className="text-slate-500">
+              {recherche ? 'Aucun résultat' : 'Aucun bénéficiaire'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {beneficiairesFiltres.map((b, index) => {
+              let heuresHebdo = 0
+              b.creneauxHabituels?.forEach(c => {
+                const [hDebut, mDebut] = c.heureDebut.split(':').map(Number)
+                const [hFin, mFin] = c.heureFin.split(':').map(Number)
+                heuresHebdo += (hFin * 60 + mFin - hDebut * 60 - mDebut) / 60
+              })
+
+              return (
+                <Link
+                  key={b.id}
+                  to={`/beneficiaires/${b.id}`}
+                  className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08)] border border-slate-100 hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 transition-all group"
+                >
+                  <div className={`relative w-12 h-12 ${
+                    b.statut === 'pause' ? 'bg-slate-300' : avatarColors[index % avatarColors.length]
+                  } rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg`}>
+                    {b.prenom[0]?.toUpperCase()}
+                    {b.statut === 'actif' && (
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white" />
                     )}
                   </div>
 
-                  {/* Flèche */}
-                  <span className="text-gray-400 text-xl">›</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-800 group-hover:text-slate-900">
+                        {b.prenom} {b.nom}
+                      </p>
+                      {b.statut === 'pause' && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                          Pause
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-400 truncate">{b.ville || 'Ville non renseignée'}</p>
+                  </div>
+
+                  {heuresHebdo > 0 && (
+                    <div className="bg-slate-100 px-3 py-1.5 rounded-xl">
+                      <span className="text-sm font-bold text-slate-600">{heuresHebdo.toFixed(0)}h</span>
+                      <span className="text-xs text-slate-400">/sem</span>
+                    </div>
+                  )}
+
+                  <svg className="w-5 h-5 text-slate-300 group-hover:text-slate-400 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </Link>
-
-                {/* Actions rapides */}
-                <div className="flex border-t border-gray-100 divide-x divide-gray-100">
-                  <Link
-                    to={`/beneficiaires/${b.id}/planning`}
-                    className="flex-1 py-3 text-center text-sm text-gray-600 hover:bg-gray-50 transition"
-                  >
-                    📅 Planning
-                  </Link>
-                  <Link
-                    to={`/beneficiaires/${b.id}/carnet`}
-                    className="flex-1 py-3 text-center text-sm text-gray-600 hover:bg-gray-50 transition"
-                  >
-                    📓 Carnet
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(b.id, b.prenom)}
-                    className="flex-1 py-3 text-center text-sm text-red-500 hover:bg-red-50 transition"
-                  >
-                    🗑️ Supprimer
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* État vide */
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-5xl">👥</span>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Aucun bénéficiaire
-            </h2>
-            <p className="text-gray-500 mb-6 max-w-xs mx-auto">
-              Ajoute ton premier bénéficiaire pour commencer à organiser ton travail
-            </p>
-            <Link
-              to="/beneficiaires/nouveau"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition shadow-lg"
-            >
-              <span className="text-xl">+</span>
-              Ajouter un bénéficiaire
-            </Link>
-          </div>
-        )}
-
-        {/* Astuce */}
-        {beneficiaires.length > 0 && beneficiaires.length < 3 && (
-          <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
-            <p className="text-sm text-blue-800">
-              <strong>💡 Astuce :</strong> Tu peux ajouter plusieurs bénéficiaires et gérer le planning de chacun séparément.
-            </p>
+              )
+            })}
           </div>
         )}
       </main>
-    </Layout>
+
+      {/* FAB */}
+      <Link
+        to="/beneficiaires/nouveau"
+        className="fixed bottom-24 right-5 w-14 h-14 bg-slate-800 text-white rounded-2xl shadow-xl shadow-slate-400/30 flex items-center justify-center hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all z-40"
+      >
+        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </Link>
+
+      <BottomNav />
+    </div>
   )
 }
