@@ -1,612 +1,915 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { useBeneficiaires } from '../store/useBeneficiaires'
+import type { Langue } from '../utils/traductions'
 import jsPDF from 'jspdf'
 
-// Constantes
-const CREDIT_IMPOT_TAUX = 0.5
-const SEMAINES_PAR_MOIS = 4
+// Constantes pour les calculs CESU (basé sur simulateur officiel)
+// Pour un salaire net, les charges patronales représentent ~75% du net
+const TAUX_CHARGES_SUR_NET = 0.754 // Charges patronales ≈ 75,4% du salaire net
 
-const JOURS_SEMAINE = [
-  { id: 'lundi', label: 'Lun', fullLabel: 'Lundi', isWeekend: false },
-  { id: 'mardi', label: 'Mar', fullLabel: 'Mardi', isWeekend: false },
-  { id: 'mercredi', label: 'Mer', fullLabel: 'Mercredi', isWeekend: false },
-  { id: 'jeudi', label: 'Jeu', fullLabel: 'Jeudi', isWeekend: false },
-  { id: 'vendredi', label: 'Ven', fullLabel: 'Vendredi', isWeekend: false },
-  { id: 'samedi', label: 'Sam', fullLabel: 'Samedi', isWeekend: true },
-  { id: 'dimanche', label: 'Dim', fullLabel: 'Dimanche', isWeekend: true },
-]
+interface DevisData {
+  // Client
+  clientNom: string
+  clientPrenom: string
+  clientAdresse: string
+  clientVille: string
+  clientCodePostal: string
+  clientTelephone: string
+  clientEmail: string
+  
+  // Prestation
+  mode: 'simple' | 'detaille'
+  heuresTotal: number
+  tauxHoraireNet: number // Ce que l'auxiliaire veut toucher
+  
+  // Mode détaillé
+  frequence: 'semaine' | 'mois' | 'ponctuel'
+  joursParSemaine: number
+  heuresParJour: number
+  
+  // Frais additionnels
+  fraisKm: number
+  kmEstimes: number
+  fraisRepas: number
+  autresFrais: number
+  autresFraisDescription: string
+  
+  // Infos devis
+  dateDevis: string
+  validiteJours: number
+  commentaires: string
+}
 
-const PRESTATIONS = [
-  'Aide à la toilette',
-  'Aide au lever/coucher',
-  'Préparation des repas',
-  'Courses',
-  'Entretien du logement',
-  'Accompagnement sorties',
-  'Gestion administrative',
-  'Compagnie / stimulation',
-]
-
-// Composant Toggle
-const ToggleSwitch = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
-  <button
-    type="button"
-    onClick={() => onChange(!checked)}
-    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 ${
-      checked ? 'bg-teal-500' : 'bg-gray-300'
-    }`}
-  >
-    <span
-      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-200 ${
-        checked ? 'translate-x-6' : 'translate-x-1'
-      }`}
-    />
-  </button>
-)
+// Calcul du coût employeur (ce que le client paie)
+function calculerCoutEmployeur(tauxNet: number): number {
+  // Coût employeur = Net + charges patronales (~75,4% du net)
+  return tauxNet * (1 + TAUX_CHARGES_SUR_NET)
+}
 
 export default function DevisPage() {
-  const { beneficiaires } = useBeneficiaires()
+  const [langue, setLangue] = useState<Langue>('fr')
+  const [etape, setEtape] = useState(1)
+  const totalEtapes = 4
 
-  // Bénéficiaire sélectionné
-  const [beneficiaireId, setBeneficiaireId] = useState('')
-  const beneficiaire = beneficiaires.find((b) => b.id === Number(beneficiaireId))
-
-  // Tarifs
-  const [tarifNormal, setTarifNormal] = useState(14)
-  const [tarifWeekend, setTarifWeekend] = useState(16)
-  const [fraisDeplacement, setFraisDeplacement] = useState(0)
-
-  // Options
-  const [inclureCreditImpot, setInclureCreditImpot] = useState(true)
-
-  // Heures par jour
-  const [heuresJour, setHeuresJour] = useState(2)
-
-  // Jours sélectionnés
-  const [joursSelectionnes, setJoursSelectionnes] = useState({
-    lundi: true,
-    mardi: true,
-    mercredi: true,
-    jeudi: true,
-    vendredi: true,
-    samedi: false,
-    dimanche: false,
+  const [devis, setDevis] = useState<DevisData>({
+    clientNom: '',
+    clientPrenom: '',
+    clientAdresse: '',
+    clientVille: '',
+    clientCodePostal: '',
+    clientTelephone: '',
+    clientEmail: '',
+    
+    mode: 'simple',
+    heuresTotal: 20,
+    tauxHoraireNet: 11.50,
+    
+    frequence: 'semaine',
+    joursParSemaine: 5,
+    heuresParJour: 4,
+    
+    fraisKm: 0.52,
+    kmEstimes: 0,
+    fraisRepas: 0,
+    autresFrais: 0,
+    autresFraisDescription: '',
+    
+    dateDevis: new Date().toISOString().split('T')[0],
+    validiteJours: 30,
+    commentaires: '',
   })
 
-  // Prestations
-  const [prestationsSelectionnees, setPrestationsSelectionnees] = useState<string[]>([])
+  // Calculs automatiques
+  const coutEmployeur = calculerCoutEmployeur(devis.tauxHoraireNet)
+  const chargesPatronales = devis.tauxHoraireNet * TAUX_CHARGES_SUR_NET
+  
+  const heuresCalculees = devis.mode === 'simple' 
+    ? devis.heuresTotal 
+    : devis.joursParSemaine * devis.heuresParJour * (devis.frequence === 'mois' ? 4 : 1)
+  
+  const totalPrestation = heuresCalculees * coutEmployeur
+  const totalKm = devis.kmEstimes * devis.fraisKm
+  const totalFrais = totalKm + devis.fraisRepas + devis.autresFrais
+  const totalDevis = totalPrestation + totalFrais
+  const totalApresCredit = totalDevis / 2 // Crédit d'impôt 50%
 
-  // Notes
-  const [notes, setNotes] = useState('')
+  // Navigation
+  const nextEtape = () => setEtape(e => Math.min(e + 1, totalEtapes))
+  const prevEtape = () => setEtape(e => Math.max(e - 1, 1))
 
-  const toggleJour = (jourId: string) => {
-    setJoursSelectionnes((prev) => ({
-      ...prev,
-      [jourId]: !prev[jourId as keyof typeof prev],
-    }))
-  }
-
-  const togglePrestation = (prestation: string) => {
-    if (prestationsSelectionnees.includes(prestation)) {
-      setPrestationsSelectionnees(prestationsSelectionnees.filter((p) => p !== prestation))
-    } else {
-      setPrestationsSelectionnees([...prestationsSelectionnees, prestation])
-    }
-  }
-
-  // Calculs
-  const calculs = useMemo(() => {
-    const joursNormaux = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'].filter(
-      (jour) => joursSelectionnes[jour as keyof typeof joursSelectionnes]
-    ).length
-    const joursWeekend = (joursSelectionnes.samedi ? 1 : 0) + (joursSelectionnes.dimanche ? 1 : 0)
-    const totalJours = joursNormaux + joursWeekend
-
-    const heuresMensuellesNormales = heuresJour * joursNormaux * SEMAINES_PAR_MOIS
-    const heuresMensuellesWeekend = heuresJour * joursWeekend * SEMAINES_PAR_MOIS
-    const totalHeuresMensuelles = heuresMensuellesNormales + heuresMensuellesWeekend
-
-    const coutNormal = heuresMensuellesNormales * tarifNormal
-    const coutWeekend = heuresMensuellesWeekend * tarifWeekend
-    const totalBrut = coutNormal + coutWeekend + fraisDeplacement
-
-    const creditImpot = inclureCreditImpot ? totalBrut * CREDIT_IMPOT_TAUX : 0
-    const totalNet = totalBrut - creditImpot
-
-    return {
-      joursNormaux,
-      joursWeekend,
-      totalJours,
-      heuresMensuellesNormales,
-      heuresMensuellesWeekend,
-      totalHeuresMensuelles,
-      coutNormal,
-      coutWeekend,
-      totalBrut,
-      creditImpot,
-      totalNet,
-    }
-  }, [tarifNormal, tarifWeekend, heuresJour, joursSelectionnes, fraisDeplacement, inclureCreditImpot])
-
+  // Génération PDF
   const genererPDF = () => {
-    if (!beneficiaire) {
-      alert('Veuillez sélectionner un bénéficiaire')
-      return
-    }
-
     const doc = new jsPDF()
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const date = new Date().toLocaleDateString('fr-FR')
-    let y = 20
-
+    
     // En-tête
-    doc.setFillColor(13, 148, 136)
-    doc.rect(0, 0, pageWidth, 40, 'F')
-
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(24)
+    doc.setFontSize(20)
     doc.setFont('helvetica', 'bold')
-    doc.text('CeSuCare', 20, 25)
-
-    doc.setFontSize(12)
+    doc.text('DEVIS', 105, 20, { align: 'center' })
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text('Proposition tarifaire', 20, 33)
-    doc.text(`Date : ${date}`, pageWidth - 20, 25, { align: 'right' })
-
-    y = 55
-
-    // Bénéficiaire
-    doc.setTextColor(13, 148, 136)
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Bénéficiaire', 20, y)
-    y += 8
-
-    doc.setTextColor(60, 60, 60)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${beneficiaire.prenom} ${beneficiaire.nom}`, 25, y)
-    y += 6
-    doc.text(`${beneficiaire.adresse || 'Adresse non renseignée'}`, 25, y)
-    y += 6
-    doc.text(`Tél : ${beneficiaire.telephone}`, 25, y)
-    y += 15
-
-    // Prestations
-    if (prestationsSelectionnees.length > 0) {
-      doc.setTextColor(13, 148, 136)
-      doc.setFontSize(14)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Prestations', 20, y)
-      y += 8
-
-      doc.setTextColor(60, 60, 60)
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'normal')
-      prestationsSelectionnees.forEach((p) => {
-        doc.text(`• ${p}`, 25, y)
-        y += 6
-      })
-      y += 10
-    }
-
-    // Planning
-    doc.setTextColor(13, 148, 136)
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Planning prévu', 20, y)
-    y += 8
-
-    doc.setTextColor(60, 60, 60)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-
-    const joursActifs = Object.entries(joursSelectionnes)
-      .filter(([_, actif]) => actif)
-      .map(([jour]) => JOURS_SEMAINE.find((j) => j.id === jour)?.fullLabel)
-      .join(', ')
-
-    doc.text(`Jours : ${joursActifs}`, 25, y)
-    y += 6
-    doc.text(`Heures/jour : ${heuresJour}h`, 25, y)
-    y += 6
-    doc.text(`Total mensuel : ${calculs.totalHeuresMensuelles}h/mois`, 25, y)
-    y += 15
-
-    // Tarification
-    doc.setTextColor(13, 148, 136)
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Tarification', 20, y)
-    y += 8
-
-    doc.setTextColor(60, 60, 60)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-
-    if (calculs.coutNormal > 0) {
-      doc.text(`Lun-Ven (${calculs.heuresMensuellesNormales}h × ${tarifNormal}€)`, 25, y)
-      doc.text(`${calculs.coutNormal}€`, pageWidth - 25, y, { align: 'right' })
-      y += 6
-    }
-    if (calculs.coutWeekend > 0) {
-      doc.text(`Weekend (${calculs.heuresMensuellesWeekend}h × ${tarifWeekend}€)`, 25, y)
-      doc.text(`${calculs.coutWeekend}€`, pageWidth - 25, y, { align: 'right' })
-      y += 6
-    }
-    if (fraisDeplacement > 0) {
-      doc.text(`Frais de déplacement`, 25, y)
-      doc.text(`${fraisDeplacement}€`, pageWidth - 25, y, { align: 'right' })
-      y += 6
-    }
-
-    y += 5
+    doc.text('Services d\'aide à domicile - CESU', 105, 27, { align: 'center' })
+    
     doc.setDrawColor(13, 148, 136)
-    doc.line(25, y, pageWidth - 25, y)
-    y += 8
+    doc.setLineWidth(0.5)
+    doc.line(20, 32, 190, 32)
 
-    doc.setFont('helvetica', 'bold')
-    doc.text('Total brut', 25, y)
-    doc.text(`${calculs.totalBrut}€/mois`, pageWidth - 25, y, { align: 'right' })
-    y += 8
-
-    if (inclureCreditImpot) {
-      doc.setTextColor(46, 204, 113)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Crédit d\'impôt 50%', 25, y)
-      doc.text(`-${calculs.creditImpot}€`, pageWidth - 25, y, { align: 'right' })
-      y += 10
-
-      doc.setFillColor(46, 204, 113)
-      doc.roundedRect(20, y - 3, pageWidth - 40, 12, 2, 2, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Reste à charge', 25, y + 5)
-      doc.text(`${calculs.totalNet}€/mois`, pageWidth - 25, y + 5, { align: 'right' })
-    }
-
-    // Notes
-    if (notes) {
-      y += 25
-      doc.setTextColor(100, 100, 100)
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Notes :', 20, y)
-      y += 5
-      doc.text(notes, 20, y)
-    }
-
-    // Footer
-    doc.setTextColor(150, 150, 150)
+    // Infos devis
     doc.setFontSize(9)
-    doc.text('Ce devis est valable 30 jours. Paiement en CESU.', 20, 270)
-    doc.text('CeSuCare - Services à la personne', 20, 277)
+    doc.text(`Devis n° : ${Date.now().toString().slice(-8)}`, 150, 40)
+    doc.text(`Date : ${devis.dateDevis}`, 150, 46)
+    doc.text(`Validité : ${devis.validiteJours} jours`, 150, 52)
 
-    doc.save(`devis-${beneficiaire.nom}-${date}.pdf`)
+    // Client
+    let y = 45
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CLIENT', 20, y)
+    y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`${devis.clientPrenom} ${devis.clientNom}`, 20, y)
+    y += 5
+    doc.text(devis.clientAdresse, 20, y)
+    y += 5
+    doc.text(`${devis.clientCodePostal} ${devis.clientVille}`, 20, y)
+    y += 5
+    if (devis.clientTelephone) doc.text(`Tél : ${devis.clientTelephone}`, 20, y)
+
+    // Tableau prestation
+    y = 85
+    doc.setFillColor(13, 148, 136)
+    doc.rect(20, y, 170, 8, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.text('PRESTATION', 25, y + 5.5)
+    doc.text('Qté', 110, y + 5.5)
+    doc.text('Prix unit.', 135, y + 5.5)
+    doc.text('Total', 170, y + 5.5)
+
+    y += 8
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('helvetica', 'normal')
+    
+    // Ligne prestation
+    doc.setDrawColor(230, 230, 230)
+    doc.rect(20, y, 170, 12)
+    y += 4
+    doc.text('Aide à domicile', 25, y + 4)
+    doc.text(`${heuresCalculees}h`, 110, y + 4)
+    doc.text(`${coutEmployeur.toFixed(2)}€/h`, 135, y + 4)
+    doc.text(`${totalPrestation.toFixed(2)}€`, 170, y + 4)
+    
+    y += 12
+
+    // Frais kilométriques si applicable
+    if (devis.kmEstimes > 0) {
+      doc.rect(20, y, 170, 10)
+      doc.text('Frais kilométriques', 25, y + 6)
+      doc.text(`${devis.kmEstimes} km`, 110, y + 6)
+      doc.text(`${devis.fraisKm.toFixed(2)}€/km`, 135, y + 6)
+      doc.text(`${totalKm.toFixed(2)}€`, 170, y + 6)
+      y += 10
+    }
+
+    // Autres frais
+    if (devis.fraisRepas > 0) {
+      doc.rect(20, y, 170, 10)
+      doc.text('Frais de repas', 25, y + 6)
+      doc.text('', 110, y + 6)
+      doc.text('', 135, y + 6)
+      doc.text(`${devis.fraisRepas.toFixed(2)}€`, 170, y + 6)
+      y += 10
+    }
+
+    if (devis.autresFrais > 0) {
+      doc.rect(20, y, 170, 10)
+      doc.text(devis.autresFraisDescription || 'Autres frais', 25, y + 6)
+      doc.text('', 110, y + 6)
+      doc.text('', 135, y + 6)
+      doc.text(`${devis.autresFrais.toFixed(2)}€`, 170, y + 6)
+      y += 10
+    }
+
+    // Total SANS avantage fiscal
+    y += 5
+    doc.setFillColor(230, 126, 34) // Orange
+    doc.rect(90, y, 100, 12, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.text('SANS AVANTAGE FISCAL', 95, y + 8)
+    doc.setFontSize(12)
+    doc.text(`${totalDevis.toFixed(2)}€`, 175, y + 8)
+
+    // Total AVEC crédit d'impôt
+    y += 14
+    doc.setFillColor(39, 174, 96) // Vert
+    doc.rect(90, y, 100, 12, 'F')
+    doc.setFontSize(10)
+    doc.text('APRÈS CRÉDIT D\'IMPÔT 50%', 95, y + 8)
+    doc.setFontSize(12)
+    doc.text(`${(totalDevis / 2).toFixed(2)}€`, 175, y + 8)
+    doc.setTextColor(0, 0, 0)
+
+    // Encadré explicatif tarifs
+    y += 25
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DÉTAIL DE LA TARIFICATION', 20, y)
+    y += 6
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    
+    doc.setFillColor(250, 250, 250)
+    doc.rect(20, y, 170, 22, 'F')
+    doc.setDrawColor(200, 200, 200)
+    doc.rect(20, y, 170, 22)
+    
+    y += 5
+    doc.text(`• Salaire net à verser au salarié : ${devis.tauxHoraireNet.toFixed(2)}€/h (10% de congés payés inclus)`, 25, y)
+    y += 5
+    doc.text(`• Cotisations sociales prélevées à l'employeur : ${(devis.tauxHoraireNet * TAUX_CHARGES_SUR_NET).toFixed(2)}€/h`, 25, y)
+    y += 5
+    doc.text(`• Coût total employeur (charges incluses) : ${coutEmployeur.toFixed(2)}€/h`, 25, y)
+    y += 5
+    doc.text(`• Après crédit d'impôt 50% : ${(coutEmployeur / 2).toFixed(2)}€/h`, 25, y)
+
+    // Commentaires
+    if (devis.commentaires) {
+      y += 15
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('REMARQUES', 20, y)
+      y += 5
+      doc.setFont('helvetica', 'normal')
+      const lignes = doc.splitTextToSize(devis.commentaires, 170)
+      doc.text(lignes, 20, y)
+    }
+
+    // Pied de page avec mentions légales
+    y = 245
+    doc.setFontSize(7)
+    doc.setTextColor(100, 100, 100)
+    doc.setFont('helvetica', 'normal')
+    
+    const mentions = [
+      `Ces montants sont communiqués à titre indicatif, au ${new Date().toLocaleDateString('fr-FR')}, 10% de congés payés inclus.`,
+      'Coût réel de l\'emploi pour un particulier employeur (hors départements du Bas-Rhin, Haut-Rhin, Moselle et Outre-mer)',
+      'après application de la déduction forfaitaire ou, le cas échéant, d\'une exonération.',
+      'Ce montant ne tient pas compte du prélèvement à la source de l\'impôt sur le revenu.',
+      'Le prélèvement à la source est sans incidence pour les montants dus par l\'employeur.',
+      `Devis valable ${devis.validiteJours} jours. Crédit d'impôt : 50% des sommes versées (plafond annuel applicable).`
+    ]
+    
+    mentions.forEach((ligne, i) => {
+      doc.text(ligne, 105, y + (i * 4), { align: 'center' })
+    })
+
+    doc.save(`devis-${devis.clientNom || 'client'}-${devis.dateDevis}.pdf`)
   }
+
+  // Labels des étapes
+  const etapesTitres = [
+    { fr: 'Client', ar: 'الزبون' },
+    { fr: 'Prestation', ar: 'الخدمة' },
+    { fr: 'Tarifs', ar: 'الأثمنة' },
+    { fr: 'Résumé', ar: 'الملخص' },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <header className="bg-teal-600 text-white p-4 flex items-center gap-4">
-        <Link to="/dashboard" className="hover:bg-teal-700 p-2 rounded">
-          ← Retour
-        </Link>
-        <h1 className="text-xl font-bold">📄 Générateur de Devis</h1>
+    <div className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-teal-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-lg mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link to="/documents" className="text-teal-600 hover:text-teal-700 font-medium">
+              ← {langue === 'fr' ? 'Retour' : 'رجوع'}
+            </Link>
+            
+            {/* Switch langue */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
+              <button
+                onClick={() => setLangue('fr')}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                  langue === 'fr' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                🇫🇷 FR
+              </button>
+              <button
+                onClick={() => setLangue('ar')}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                  langue === 'ar' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                🇲🇦 عربي
+              </button>
+            </div>
+          </div>
+          
+          <h1 className="text-center text-lg font-bold text-gray-900 mt-2">
+            📝 {langue === 'fr' ? 'Générateur de devis' : 'صانع الديفي'}
+          </h1>
+        </div>
       </header>
 
-      <main className="p-6 max-w-4xl mx-auto">
-        {/* En-tête */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-teal-100 rounded-full mb-4">
-            <span className="text-3xl">🧮</span>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900">Calculateur de devis</h2>
-          <p className="text-gray-600">Estimation rapide et professionnelle</p>
-        </motion.div>
-
-        {/* Section 1 : Bénéficiaire */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-6 shadow-lg mb-6"
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            👤 Bénéficiaire
-          </h3>
-          <select
-            value={beneficiaireId}
-            onChange={(e) => setBeneficiaireId(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
-          >
-            <option value="">-- Sélectionner un bénéficiaire --</option>
-            {beneficiaires.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.prenom} {b.nom}
-              </option>
-            ))}
-          </select>
-        </motion.div>
-
-        {/* Section 2 : Tarifs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl p-6 shadow-lg mb-6"
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            💰 Tarifs horaires
-          </h3>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">☀️ Lun-Ven</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.5"
-                  value={tarifNormal}
-                  onChange={(e) => setTarifNormal(Number(e.target.value))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none text-lg font-bold text-center"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€/h</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">📅 Weekend</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.5"
-                  value={tarifWeekend}
-                  onChange={(e) => setTarifWeekend(Number(e.target.value))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-lg font-bold text-center"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€/h</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">🚗 Déplacement</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="5"
-                  value={fraisDeplacement}
-                  onChange={(e) => setFraisDeplacement(Number(e.target.value))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none text-lg font-bold text-center"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€/mois</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Crédit d'impôt */}
-          <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
-            <div>
-              <p className="font-semibold text-gray-900">💳 Crédit d'impôt 50%</p>
-              <p className="text-sm text-gray-600">Avantage fiscal services à la personne</p>
-            </div>
-            <ToggleSwitch checked={inclureCreditImpot} onChange={setInclureCreditImpot} />
-          </div>
-        </motion.div>
-
-        {/* Section 3 : Heures et jours */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl p-6 shadow-lg mb-6"
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            ⏰ Volume horaire
-          </h3>
-
-          {/* Heures par jour */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Heures par jour d'intervention
-            </label>
-
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {[1, 2, 3, 4].map((h) => (
-                <button
-                  key={h}
-                  onClick={() => setHeuresJour(h)}
-                  className={`p-3 rounded-xl border-2 transition-all text-center ${
-                    heuresJour === h
-                      ? 'border-teal-500 bg-teal-50 text-teal-700'
-                      : 'border-gray-200 hover:border-gray-300'
+      <main className="max-w-lg mx-auto px-4 py-6 pb-32">
+        {/* Barre de progression */}
+        <div className="mb-6">
+          <div className="flex justify-between mb-2">
+            {etapesTitres.map((titre, index) => (
+              <button
+                key={index}
+                onClick={() => setEtape(index + 1)}
+                className="flex flex-col items-center"
+              >
+                <div
+                  className={`w-10 h-10 rounded-full font-bold flex items-center justify-center transition ${
+                    index + 1 === etape
+                      ? 'bg-teal-600 text-white shadow-lg scale-110'
+                      : index + 1 < etape
+                      ? 'bg-teal-200 text-teal-700'
+                      : 'bg-gray-200 text-gray-400'
                   }`}
                 >
-                  <span className="text-xl font-bold block">{h}h</span>
-                </button>
-              ))}
-            </div>
+                  {index + 1 < etape ? '✓' : index + 1}
+                </div>
+                <span className={`text-xs mt-1 ${index + 1 === etape ? 'text-teal-700 font-medium' : 'text-gray-400'}`}>
+                  {langue === 'ar' ? titre.ar : titre.fr}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-teal-500 to-teal-600 rounded-full transition-all duration-300"
+              style={{ width: `${((etape - 1) / (totalEtapes - 1)) * 100}%` }}
+            />
+          </div>
+        </div>
 
-            <div className="bg-gray-50 rounded-xl p-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500">Ajuster</span>
+        {/* ÉTAPE 1 : Client */}
+        {etape === 1 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-teal-700 mb-4">
+                👤 {langue === 'fr' ? 'Informations du client' : 'معلومات الزبون'}
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Nom' : 'السمية'}
+                  </label>
+                  <input
+                    type="text"
+                    value={devis.clientNom}
+                    onChange={(e) => setDevis(prev => ({ ...prev, clientNom: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    placeholder="DUPONT"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Prénom' : 'الاسم'}
+                  </label>
+                  <input
+                    type="text"
+                    value={devis.clientPrenom}
+                    onChange={(e) => setDevis(prev => ({ ...prev, clientPrenom: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    placeholder="Marie"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {langue === 'fr' ? 'Adresse' : 'العنوان'}
+                </label>
                 <input
-                  type="range"
-                  min="0.5"
-                  max="8"
-                  step="0.5"
-                  value={heuresJour}
-                  onChange={(e) => setHeuresJour(Number(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-teal-500"
+                  type="text"
+                  value={devis.clientAdresse}
+                  onChange={(e) => setDevis(prev => ({ ...prev, clientAdresse: e.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  placeholder="12 rue des Lilas"
                 />
-                <div className="w-16 text-center bg-white rounded-lg px-3 py-2 border shadow-sm">
-                  <span className="text-xl font-bold text-teal-600">{heuresJour}h</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Ville' : 'المدينة'}
+                  </label>
+                  <input
+                    type="text"
+                    value={devis.clientVille}
+                    onChange={(e) => setDevis(prev => ({ ...prev, clientVille: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    placeholder="Paris"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Code postal' : 'الكود بوسطال'}
+                  </label>
+                  <input
+                    type="text"
+                    value={devis.clientCodePostal}
+                    onChange={(e) => setDevis(prev => ({ ...prev, clientCodePostal: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    placeholder="75012"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Téléphone' : 'التيليفون'}
+                  </label>
+                  <input
+                    type="tel"
+                    value={devis.clientTelephone}
+                    onChange={(e) => setDevis(prev => ({ ...prev, clientTelephone: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    placeholder="06 12 34 56 78"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={devis.clientEmail}
+                    onChange={(e) => setDevis(prev => ({ ...prev, clientEmail: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    placeholder="email@exemple.fr"
+                  />
                 </div>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Jours */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Jours d'intervention
-            </label>
-            <div className="grid grid-cols-7 gap-2">
-              {JOURS_SEMAINE.map((jour) => {
-                const isSelected = joursSelectionnes[jour.id as keyof typeof joursSelectionnes]
-                return (
-                  <button
-                    key={jour.id}
-                    onClick={() => toggleJour(jour.id)}
-                    className={`p-3 rounded-xl border-2 transition-all text-center ${
-                      isSelected
-                        ? jour.isWeekend
-                          ? 'border-purple-500 bg-purple-50 text-purple-700'
-                          : 'border-teal-500 bg-teal-50 text-teal-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="text-sm font-bold block">{jour.label}</span>
-                    {isSelected && (
-                      <span className="text-xs block mt-1">
-                        {jour.isWeekend ? tarifWeekend : tarifNormal}€
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
+        {/* ÉTAPE 2 : Prestation */}
+        {etape === 2 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-teal-700 mb-4">
+                📋 {langue === 'fr' ? 'Type de devis' : 'نوع الديفي'}
+              </h3>
+
+              {/* Choix du mode */}
+              <div className="space-y-3 mb-6">
+                <label
+                  className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition ${
+                    devis.mode === 'simple' ? 'border-teal-500 bg-teal-50' : 'border-gray-200'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={devis.mode === 'simple'}
+                    onChange={() => setDevis(prev => ({ ...prev, mode: 'simple' }))}
+                    className="w-5 h-5 text-teal-600"
+                  />
+                  <div>
+                    <p className="font-medium">
+                      {langue === 'fr' ? '🎯 Mode simple' : '🎯 الطريقة البسيطة'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {langue === 'fr' 
+                        ? 'Je rentre juste le nombre d\'heures total' 
+                        : 'غير ندخل عدد الساعات'}
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition ${
+                    devis.mode === 'detaille' ? 'border-teal-500 bg-teal-50' : 'border-gray-200'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={devis.mode === 'detaille'}
+                    onChange={() => setDevis(prev => ({ ...prev, mode: 'detaille' }))}
+                    className="w-5 h-5 text-teal-600"
+                  />
+                  <div>
+                    <p className="font-medium">
+                      {langue === 'fr' ? '📅 Mode détaillé' : '📅 الطريقة المفصلة'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {langue === 'fr' 
+                        ? 'Je précise les jours et heures par jour' 
+                        : 'نحدد الأيام والساعات'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Mode simple */}
+              {devis.mode === 'simple' && (
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {langue === 'fr' ? 'Nombre d\'heures total' : 'عدد الساعات الكلي'}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setDevis(prev => ({ ...prev, heuresTotal: Math.max(1, prev.heuresTotal - 1) }))}
+                      className="w-12 h-12 rounded-xl bg-gray-200 text-xl font-bold hover:bg-gray-300"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={devis.heuresTotal}
+                      onChange={(e) => setDevis(prev => ({ ...prev, heuresTotal: Number(e.target.value) }))}
+                      className="flex-1 text-center text-2xl font-bold py-3 border border-gray-200 rounded-xl"
+                      min={1}
+                    />
+                    <button
+                      onClick={() => setDevis(prev => ({ ...prev, heuresTotal: prev.heuresTotal + 1 }))}
+                      className="w-12 h-12 rounded-xl bg-teal-500 text-white text-xl font-bold hover:bg-teal-600"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="text-center text-sm text-gray-500 mt-2">
+                    {langue === 'fr' ? 'heures' : 'ساعة'}
+                  </p>
+                </div>
+              )}
+
+              {/* Mode détaillé */}
+              {devis.mode === 'detaille' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {langue === 'fr' ? 'Fréquence' : 'التكرار'}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'semaine', fr: 'Par semaine', ar: 'فالسيمانة' },
+                        { value: 'mois', fr: 'Par mois', ar: 'فالشهر' },
+                        { value: 'ponctuel', fr: 'Ponctuel', ar: 'مرة وحدة' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setDevis(prev => ({ ...prev, frequence: opt.value as 'semaine' | 'mois' | 'ponctuel' }))}
+                          className={`py-2 px-3 rounded-xl text-sm font-medium transition ${
+                            devis.frequence === opt.value
+                              ? 'bg-teal-600 text-white'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {langue === 'ar' ? opt.ar : opt.fr}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {langue === 'fr' ? 'Jours / semaine' : 'أيام / سيمانة'}
+                      </label>
+                      <input
+                        type="number"
+                        value={devis.joursParSemaine}
+                        onChange={(e) => setDevis(prev => ({ ...prev, joursParSemaine: Number(e.target.value) }))}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+                        min={1}
+                        max={7}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {langue === 'fr' ? 'Heures / jour' : 'ساعات / نهار'}
+                      </label>
+                      <input
+                        type="number"
+                        value={devis.heuresParJour}
+                        onChange={(e) => setDevis(prev => ({ ...prev, heuresParJour: Number(e.target.value) }))}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+                        min={1}
+                        max={12}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-teal-50 rounded-xl text-center">
+                    <span className="text-sm text-teal-700">
+                      {langue === 'fr' ? 'Total :' : 'المجموع:'}{' '}
+                      <strong className="text-lg">{heuresCalculees}h</strong>
+                      {devis.frequence === 'mois' && (langue === 'fr' ? ' / mois' : ' / شهر')}
+                      {devis.frequence === 'semaine' && (langue === 'fr' ? ' / semaine' : ' / سيمانة')}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+        )}
 
-          {/* Récap */}
-          <div className="mt-6 bg-teal-50 rounded-xl p-4 border border-teal-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-teal-700 font-semibold">
-                  💡 {heuresJour}h/jour × {calculs.totalJours} jour{calculs.totalJours > 1 ? 's' : ''}/sem
+        {/* ÉTAPE 3 : Tarifs */}
+        {etape === 3 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-teal-700 mb-4">
+                💰 {langue === 'fr' ? 'Votre tarification' : 'الأثمنة ديالك'}
+              </h3>
+
+              {/* Tarif horaire net */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {langue === 'fr' 
+                    ? 'Combien voulez-vous toucher NET par heure ?' 
+                    : 'شحال بغيتي تاخد صافي فالساعة؟'}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.10"
+                    value={devis.tauxHoraireNet}
+                    onChange={(e) => setDevis(prev => ({ ...prev, tauxHoraireNet: Number(e.target.value) }))}
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-xl font-bold text-center"
+                  />
+                  <span className="text-xl font-bold text-gray-600">€/h</span>
+                </div>
+              </div>
+
+              {/* Encadré explicatif */}
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-teal-50 rounded-xl border border-blue-200">
+                <p className="text-sm font-medium text-blue-800 mb-3">
+                  📊 {langue === 'fr' ? 'Calcul automatique (simulateur CESU) :' : 'الحساب الأوتوماتيكي:'}
                 </p>
-                <p className="text-sm text-teal-600">= {calculs.totalHeuresMensuelles} heures/mois</p>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                    <span className="text-gray-600">
+                      {langue === 'fr' ? 'Salaire net à verser' : 'الصالير صافي'}
+                      <span className="text-xs text-gray-400 block">(10% CP inclus)</span>
+                    </span>
+                    <span className="font-bold text-green-600">{devis.tauxHoraireNet.toFixed(2)}€/h</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                    <span className="text-gray-600">
+                      {langue === 'fr' ? 'Cotisations sociales' : 'الاشتراكات'}
+                    </span>
+                    <span className="font-medium text-gray-700">+{chargesPatronales.toFixed(2)}€/h</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center py-2 bg-orange-50 -mx-2 px-2 rounded-lg">
+                    <span className="text-orange-800 font-medium">
+                      {langue === 'fr' ? 'Coût total employeur' : 'التكلفة الكلية'}
+                    </span>
+                    <span className="font-bold text-orange-700 text-lg">{coutEmployeur.toFixed(2)}€/h</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center py-2 bg-green-50 -mx-2 px-2 rounded-lg mt-2">
+                    <span className="text-green-800 font-medium">
+                      {langue === 'fr' ? 'Après crédit d\'impôt 50%' : 'بعد الخصم 50%'}
+                    </span>
+                    <span className="font-bold text-green-700 text-lg">{(coutEmployeur / 2).toFixed(2)}€/h</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-teal-700">{calculs.totalBrut}€</p>
-                <p className="text-xs text-teal-600">brut/mois</p>
+
+              {/* Frais additionnels */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h4 className="font-medium text-gray-700 mb-3">
+                  🚗 {langue === 'fr' ? 'Frais additionnels (optionnel)' : 'المصاريف الزايدة (اختياري)'}
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      {langue === 'fr' ? 'Km estimés' : 'الكيلومترات'}
+                    </label>
+                    <input
+                      type="number"
+                      value={devis.kmEstimes}
+                      onChange={(e) => setDevis(prev => ({ ...prev, kmEstimes: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      {langue === 'fr' ? 'Indemnité/km' : 'التعويض/كم'}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={devis.fraisKm}
+                      onChange={(e) => setDevis(prev => ({ ...prev, fraisKm: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      {langue === 'fr' ? 'Frais repas (€)' : 'الماكلة (€)'}
+                    </label>
+                    <input
+                      type="number"
+                      value={devis.fraisRepas}
+                      onChange={(e) => setDevis(prev => ({ ...prev, fraisRepas: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      {langue === 'fr' ? 'Autres frais (€)' : 'مصاريف أخرى (€)'}
+                    </label>
+                    <input
+                      type="number"
+                      value={devis.autresFrais}
+                      onChange={(e) => setDevis(prev => ({ ...prev, autresFrais: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </motion.div>
+        )}
 
-        {/* Section 4 : Prestations */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-2xl p-6 shadow-lg mb-6"
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            🛠️ Prestations
-          </h3>
+        {/* ÉTAPE 4 : Résumé */}
+        {etape === 4 && (
+          <div className="space-y-6">
+            {/* Récapitulatif */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-teal-700 mb-4">
+                📋 {langue === 'fr' ? 'Récapitulatif du devis' : 'ملخص الديفي'}
+              </h3>
 
-          <div className="grid grid-cols-2 gap-2">
-            {PRESTATIONS.map((p) => (
-              <label
-                key={p}
-                className={`flex items-center gap-2 p-3 rounded-xl cursor-pointer border-2 transition-all ${
-                  prestationsSelectionnees.includes(p)
-                    ? 'bg-teal-50 border-teal-500'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={prestationsSelectionnees.includes(p)}
-                  onChange={() => togglePrestation(p)}
-                  className="accent-teal-600 w-4 h-4"
+              {/* Client */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <p className="text-sm text-gray-500 mb-1">{langue === 'fr' ? 'Client' : 'الزبون'}</p>
+                <p className="font-medium">{devis.clientPrenom} {devis.clientNom}</p>
+                <p className="text-sm text-gray-600">{devis.clientAdresse}</p>
+                <p className="text-sm text-gray-600">{devis.clientCodePostal} {devis.clientVille}</p>
+              </div>
+
+              {/* Prestation */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">{langue === 'fr' ? 'Heures' : 'الساعات'}</span>
+                  <span className="font-medium">{heuresCalculees}h</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">{langue === 'fr' ? 'Votre NET/h' : 'صافي/ساعة'}</span>
+                  <span className="font-medium text-green-600">{devis.tauxHoraireNet.toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-600">{langue === 'fr' ? 'Coût client/h' : 'تكلفة الزبون/ساعة'}</span>
+                  <span className="font-medium">{coutEmployeur.toFixed(2)}€</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">{langue === 'fr' ? 'Sous-total prestation' : 'المجموع الفرعي'}</span>
+                  <span className="font-bold">{totalPrestation.toFixed(2)}€</span>
+                </div>
+              </div>
+
+              {/* Frais */}
+              {totalFrais > 0 && (
+                <div className="mb-4 pb-4 border-b border-gray-200">
+                  {devis.kmEstimes > 0 && (
+                    <div className="flex justify-between mb-1 text-sm">
+                      <span className="text-gray-500">Frais km ({devis.kmEstimes} km)</span>
+                      <span>{totalKm.toFixed(2)}€</span>
+                    </div>
+                  )}
+                  {devis.fraisRepas > 0 && (
+                    <div className="flex justify-between mb-1 text-sm">
+                      <span className="text-gray-500">Frais repas</span>
+                      <span>{devis.fraisRepas.toFixed(2)}€</span>
+                    </div>
+                  )}
+                  {devis.autresFrais > 0 && (
+                    <div className="flex justify-between mb-1 text-sm">
+                      <span className="text-gray-500">Autres frais</span>
+                      <span>{devis.autresFrais.toFixed(2)}€</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl text-white">
+                  <span className="font-medium">
+                    {langue === 'fr' ? 'Sans avantage fiscal' : 'بلا خصم ضريبي'}
+                  </span>
+                  <span className="text-2xl font-bold">{totalDevis.toFixed(2)}€</span>
+                </div>
+                
+                <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-500 to-green-600 rounded-xl text-white">
+                  <span className="font-medium">
+                    {langue === 'fr' ? 'Après crédit d\'impôt 50%' : 'بعد الخصم 50%'}
+                  </span>
+                  <span className="text-2xl font-bold">{totalApresCredit.toFixed(2)}€</span>
+                </div>
+              </div>
+
+              {/* Mentions légales */}
+              <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-500 leading-relaxed">
+                <p className="mb-2">
+                  <strong>⚠️ Mentions :</strong> Ces montants sont communiqués à titre indicatif, au {new Date().toLocaleDateString('fr-FR')}, 10% de congés payés inclus.
+                </p>
+                <p className="mb-2">
+                  Coût réel de l'emploi pour un particulier employeur (hors départements du Bas-Rhin, Haut-Rhin, Moselle et de l'Outre-mer) après application de la déduction forfaitaire.
+                </p>
+                <p>
+                  Ce montant ne tient pas compte du prélèvement à la source de l'impôt sur le revenu. Le prélèvement à la source est sans incidence pour les montants dus par l'employeur.
+                </p>
+              </div>
+            </div>
+
+            {/* Options devis */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Date du devis' : 'تاريخ الديفي'}
+                  </label>
+                  <input
+                    type="date"
+                    value={devis.dateDevis}
+                    onChange={(e) => setDevis(prev => ({ ...prev, dateDevis: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {langue === 'fr' ? 'Validité (jours)' : 'الصلاحية (أيام)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={devis.validiteJours}
+                    onChange={(e) => setDevis(prev => ({ ...prev, validiteJours: Number(e.target.value) }))}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {langue === 'fr' ? 'Commentaires' : 'ملاحظات'}
+                </label>
+                <textarea
+                  value={devis.commentaires}
+                  onChange={(e) => setDevis(prev => ({ ...prev, commentaires: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl resize-none"
+                  rows={3}
+                  placeholder={langue === 'fr' ? 'Précisions, conditions...' : 'تفاصيل، شروط...'}
                 />
-                <span className="text-sm">{p}</span>
-              </label>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Section 5 : Notes */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-2xl p-6 shadow-lg mb-6"
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            📝 Notes
-          </h3>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
-            rows={3}
-            placeholder="Conditions particulières, remarques..."
-          />
-        </motion.div>
-
-        {/* Section 6 : Résultat */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white rounded-2xl p-6 shadow-lg mb-6"
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            📊 Récapitulatif
-          </h3>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="border-2 border-teal-200 rounded-2xl p-6 bg-teal-50">
-              <p className="text-sm text-gray-500 uppercase tracking-wide mb-2">Coût brut</p>
-              <p className="text-4xl font-bold text-teal-700">
-                {calculs.totalBrut}€<span className="text-lg">/mois</span>
-              </p>
-            </div>
-
-            {inclureCreditImpot && (
-              <div className="border-2 border-green-300 rounded-2xl p-6 bg-green-50">
-                <p className="text-sm text-gray-500 uppercase tracking-wide mb-2">Reste à charge</p>
-                <p className="text-4xl font-bold text-green-600">
-                  {calculs.totalNet}€<span className="text-lg">/mois</span>
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  Après crédit d'impôt de {calculs.creditImpot}€
-                </p>
               </div>
-            )}
+            </div>
           </div>
-        </motion.div>
+        )}
+      </main>
 
-        {/* Boutons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="space-y-4"
-        >
+      {/* Footer navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
+        <div className="max-w-lg mx-auto flex gap-3">
           <button
-            onClick={genererPDF}
-            className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-4 rounded-xl font-bold text-lg hover:from-teal-600 hover:to-teal-700 transition-all shadow-lg flex items-center justify-center gap-3"
+            onClick={prevEtape}
+            disabled={etape === 1}
+            className={`flex-1 py-3 rounded-xl font-medium transition ${
+              etape === 1 ? 'bg-gray-100 text-gray-400' : 'border-2 border-teal-600 text-teal-600'
+            }`}
           >
-            📥 Télécharger le devis PDF
+            {langue === 'fr' ? '← Précédent' : '← السابق'}
           </button>
 
-          <Link
-            to="/contrat"
-            className="block text-center text-teal-600 hover:underline"
-          >
-            📋 Générer un contrat CESU →
-          </Link>
-        </motion.div>
-      </main>
+          {etape < totalEtapes ? (
+            <button
+              onClick={nextEtape}
+              className="flex-1 py-3 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition"
+            >
+              {langue === 'fr' ? 'Suivant →' : 'التالي →'}
+            </button>
+          ) : (
+            <button
+              onClick={genererPDF}
+              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-bold hover:from-green-600 hover:to-green-700 transition shadow-lg"
+            >
+              📥 {langue === 'fr' ? 'Générer PDF' : 'صيفط PDF'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
