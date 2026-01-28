@@ -4,6 +4,7 @@ import { useBeneficiaires } from '../store/useBeneficiaires'
 import { useInterventions } from '../store/useInterventions'
 import { useProfil } from '../store/useProfil'
 import Layout from '../components/Layout'
+import AjouterIntervention from '../components/AjouterIntervention'
 
 // Helpers pour les dates
 const JOURS_SEMAINE = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM']
@@ -58,6 +59,8 @@ export default function PlanningGlobalPage() {
   const { profil } = useProfil()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [weekStart, setWeekStart] = useState(new Date())
+  const [showModal, setShowModal] = useState(false)
+  const [creneauSuggere, setCreneauSuggere] = useState<{ debut: string; fin: string } | null>(null)
   
   const days = getWeekDays(weekStart)
   
@@ -74,7 +77,7 @@ export default function PlanningGlobalPage() {
   const getCreneauxLibres = () => {
     if (!dispoJour) return []
     
-    const libres: { moment: Moment; label: string; sublabel: string }[] = []
+    const libres: { moment: Moment; label: string; sublabel: string; debut: string; fin: string }[] = []
     const moments: Moment[] = ['matin', 'apresMidi', 'soir', 'nuit']
     
     moments.forEach((moment) => {
@@ -95,7 +98,9 @@ export default function PlanningGlobalPage() {
           libres.push({
             moment,
             label: creneau.label,
-            sublabel: creneau.sublabel
+            sublabel: creneau.sublabel,
+            debut: creneau.debut,
+            fin: creneau.fin,
           })
         }
       }
@@ -105,6 +110,12 @@ export default function PlanningGlobalPage() {
   }
   
   const creneauxLibres = getCreneauxLibres()
+  
+  // Ouvrir le modal avec un créneau suggéré
+  const ouvrirModalAvecCreneau = (creneau: { debut: string; fin: string } | null) => {
+    setCreneauSuggere(creneau)
+    setShowModal(true)
+  }
   
   // Navigation semaines
   const goToToday = () => {
@@ -152,12 +163,20 @@ export default function PlanningGlobalPage() {
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-gray-900">📅 Planning</h1>
-            <button
-              onClick={goToToday}
-              className="px-4 py-2 bg-teal-50 text-teal-700 rounded-full text-sm font-medium hover:bg-teal-100 transition"
-            >
-              Aujourd'hui
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goToToday}
+                className="px-4 py-2 bg-teal-50 text-teal-700 rounded-full text-sm font-medium hover:bg-teal-100 transition"
+              >
+                Aujourd'hui
+              </button>
+              <button
+                onClick={() => ouvrirModalAvecCreneau(null)}
+                className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center text-2xl hover:bg-teal-700 transition shadow-lg"
+              >
+                +
+              </button>
+            </div>
           </div>
           
           {/* Navigation mois */}
@@ -282,17 +301,18 @@ export default function PlanningGlobalPage() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {creneauxLibres.map((creneau) => (
-                  <div
+                  <button
                     key={creneau.moment}
-                    className="px-4 py-2 bg-white rounded-xl border border-green-200 shadow-sm"
+                    onClick={() => ouvrirModalAvecCreneau({ debut: creneau.debut, fin: creneau.fin })}
+                    className="px-4 py-2 bg-white rounded-xl border border-green-200 shadow-sm hover:bg-green-50 transition text-left"
                   >
                     <span className="font-medium text-gray-900">{creneau.label}</span>
                     <span className="text-gray-500 text-sm ml-2">{creneau.sublabel}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
               <p className="text-xs text-green-600 mt-3">
-                ✨ Tu pourrais proposer ces créneaux à de nouveaux bénéficiaires !
+                ✨ Clique sur un créneau pour ajouter une intervention
               </p>
             </div>
           </div>
@@ -311,7 +331,14 @@ export default function PlanningGlobalPage() {
                 : "Tu n'es pas disponible ce jour selon ton profil"
               }
             </p>
-            {!hasDispoSelected && (
+            {hasDispoSelected ? (
+              <button
+                onClick={() => ouvrirModalAvecCreneau(null)}
+                className="inline-block px-6 py-3 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition"
+              >
+                + Ajouter une intervention
+              </button>
+            ) : (
               <Link
                 to="/profil"
                 className="inline-block px-6 py-3 bg-teal-600 text-white rounded-xl font-medium hover:bg-teal-700 transition"
@@ -358,6 +385,15 @@ export default function PlanningGlobalPage() {
           </div>
         </div>
       </main>
+
+      {/* Modal Ajouter Intervention */}
+      {showModal && (
+        <AjouterIntervention
+          date={selectedDateStr}
+          onClose={() => setShowModal(false)}
+          creneauSuggere={creneauSuggere}
+        />
+      )}
     </Layout>
   )
 }
