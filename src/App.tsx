@@ -15,6 +15,7 @@ import ContratPage from './pages/ContratPage'
 import ProfilEditPage from './pages/ProfilEditPage'
 import ProfilPublicPage from './pages/ProfilPublicPage'
 import BadgesPage from './pages/BadgesPage'
+import DocumentsPage from './pages/DocumentsPage'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
         <Route path="/contrat" element={<ProtectedRoute><ContratPage /></ProtectedRoute>} />
         <Route path="/profil" element={<ProtectedRoute><ProfilEditPage /></ProtectedRoute>} />
         <Route path="/badges" element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} />
+        <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
