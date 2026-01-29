@@ -33,7 +33,7 @@ export default function ProfilPage() {
         </svg>
       ),
       label: 'Disponibilités',
-      to: '/profil/disponibilites',
+      to: '/profil/edit',
       description: 'Jours et horaires'
     },
     {
@@ -44,8 +44,8 @@ export default function ProfilPage() {
         </svg>
       ),
       label: 'Zone d\'intervention',
-      to: '/profil/zone',
-      description: (profil as any).zone || 'Non définie'
+      to: '/profil/edit',
+      description: profil.zone || 'Non définie'
     },
     {
       icon: (
@@ -54,8 +54,8 @@ export default function ProfilPage() {
         </svg>
       ),
       label: 'Tarifs',
-      to: '/profil/tarifs',
-      description: (profil as any).tarifMin && (profil as any).tarifMax ? `${(profil as any).tarifMin}€ - ${(profil as any).tarifMax}€/h` : 'Non définis'
+      to: '/profil/edit',
+      description: profil.tarifMin && profil.tarifMax ? `${profil.tarifMin}€ - ${profil.tarifMax}€/h` : 'Non définis'
     },
   ]
 
@@ -76,7 +76,7 @@ export default function ProfilPage() {
         </svg>
       ),
       label: 'Confidentialité',
-      to: '/profil/confidentialite'
+      to: '/profil/edit'
     },
     {
       icon: (
@@ -85,67 +85,63 @@ export default function ProfilPage() {
         </svg>
       ),
       label: 'Aide & support',
-      to: '/aide'
+      to: '/profil/edit'
     },
   ]
 
   return (
     <div className="min-h-screen bg-[#FFF1F2] pb-24">
       {/* Header profil */}
-      <header className="relative bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] px-6 pt-14 pb-24 overflow-hidden">
+      <header className="relative bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] px-6 pt-12 pb-20 overflow-hidden">
         {/* Formes décoratives */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         
         <div className="max-w-lg mx-auto relative z-10">
-          <div className="flex flex-col items-center text-center">
+          <div className="flex items-center gap-4">
             {/* Avatar */}
-            <div className="relative mb-4">
-              <div className="w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden ring-4 ring-white/30 shadow-xl">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden ring-2 ring-white/30 shadow-lg">
                 {profil.photo ? (
-                  <img src={profil.photo} alt="" className="w-24 h-24 object-cover" />
+                  <img src={profil.photo} alt="" className="w-16 h-16 object-cover" />
                 ) : (
-                  <span className="text-white text-3xl font-bold">
+                  <span className="text-white text-xl font-bold">
                     {profil.prenom?.[0]?.toUpperCase() || '?'}{profil.nom?.[0]?.toUpperCase() || ''}
                   </span>
                 )}
               </div>
-              <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-xl shadow-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-[#FB7185]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-lg shadow flex items-center justify-center">
+                <svg className="w-3 h-3 text-[#FB7185]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </button>
             </div>
             
-            {/* Nom */}
-            <h1 className="text-2xl font-bold text-white">
-              {profil.prenom || 'Prénom'} {profil.nom || 'Nom'}
-            </h1>
-            <p className="text-white/80 text-sm mt-1">Auxiliaire de vie</p>
-            
-            {/* Stats rapides */}
-            <div className="flex gap-6 mt-4">
+            {/* Infos */}
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-white">
+                {profil.prenom || 'Prénom'} {profil.nom || 'Nom'}
+              </h1>
+              <p className="text-white/80 text-sm">Auxiliaire de vie</p>
+            </div>
+
+            {/* Stats compactes */}
+            <div className="flex gap-3">
               <div className="text-center">
-                <p className="text-2xl font-bold text-white">{(profil as any).experience || 0}</p>
-                <p className="text-white/70 text-xs">ans d'exp.</p>
+                <p className="text-lg font-bold text-white">{profil.experience || 0}</p>
+                <p className="text-white/60 text-[10px]">ans</p>
               </div>
-              <div className="w-px bg-white/20" />
               <div className="text-center">
-                <p className="text-2xl font-bold text-white">{(profil as any).services?.length || 0}</p>
-                <p className="text-white/70 text-xs">services</p>
-              </div>
-              <div className="w-px bg-white/20" />
-              <div className="text-center">
-                <p className="text-2xl font-bold text-white">4.8</p>
-                <p className="text-white/70 text-xs">étoiles</p>
+                <p className="text-lg font-bold text-white">4.8</p>
+                <p className="text-white/60 text-[10px]">étoiles</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 -mt-12 space-y-4 relative z-10">
+      <main className="max-w-lg mx-auto px-4 -mt-8 space-y-4 relative z-10">
         
         {/* Voir mon profil public */}
         <Link

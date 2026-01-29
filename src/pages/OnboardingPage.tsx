@@ -5,11 +5,11 @@ import { useProfil } from '../store/useProfil'
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
 
 const TYPES_ACTIVITE = [
-  { id: 'aide_quotidien', label: '🏠 Aide à la vie quotidienne', desc: 'Ménage, courses, repas...' },
-  { id: 'aide_personne', label: '🧓 Aide à la personne', desc: 'Toilette, habillage, mobilité...' },
-  { id: 'garde_enfants', label: '👶 Garde d\'enfants', desc: 'Babysitting, sortie d\'école...' },
-  { id: 'compagnie', label: '💬 Compagnie', desc: 'Présence, conversation, sorties...' },
-  { id: 'nuit', label: '🌙 Garde de nuit', desc: 'Présence nocturne, surveillance...' },
+  { id: 'aide_quotidien', label: 'Aide à la vie quotidienne', icon: '🏠', desc: 'Ménage, courses, repas...' },
+  { id: 'aide_personne', label: 'Aide à la personne', icon: '🧓', desc: 'Toilette, habillage, mobilité...' },
+  { id: 'garde_enfants', label: 'Garde d\'enfants', icon: '👶', desc: 'Babysitting, sortie d\'école...' },
+  { id: 'compagnie', label: 'Compagnie', icon: '💬', desc: 'Présence, conversation, sorties...' },
+  { id: 'nuit', label: 'Garde de nuit', icon: '🌙', desc: 'Présence nocturne, surveillance...' },
 ]
 
 const DIPLOMES = [
@@ -32,7 +32,6 @@ export default function OnboardingPage() {
   const totalEtapes = 7
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // État local pour les champs du formulaire
   const [form, setForm] = useState({
     prenom: profil.prenom || '',
     nom: profil.nom || '',
@@ -65,7 +64,6 @@ export default function OnboardingPage() {
     if (etape < totalEtapes) {
       setEtape(e => e + 1)
     } else {
-      // Sauvegarder le profil avec date d'acceptation
       updateProfil({
         ...form,
         dateAcceptation: new Date().toISOString(),
@@ -77,7 +75,7 @@ export default function OnboardingPage() {
 
   const prevEtape = () => setEtape(e => Math.max(e - 1, 1))
 
-  const updateForm = (field: string, value: string | number | string[] | boolean) => {
+  const updateForm = (field: string, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -110,7 +108,6 @@ export default function OnboardingPage() {
     }))
   }
 
-  // Gestion de la photo
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -122,24 +119,6 @@ export default function OnboardingPage() {
     }
   }
 
-  const handleTakePhoto = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      // Pour simplifier, on ouvre juste le sélecteur de fichier en mode capture
-      if (fileInputRef.current) {
-        fileInputRef.current.setAttribute('capture', 'user')
-        fileInputRef.current.click()
-      }
-      stream.getTracks().forEach(track => track.stop())
-    } catch {
-      // Fallback : ouvrir le sélecteur classique
-      if (fileInputRef.current) {
-        fileInputRef.current.click()
-      }
-    }
-  }
-
-  // Vérifier si on peut passer à l'étape suivante
   const canContinue = () => {
     switch (etape) {
       case 1: return form.prenom.trim() !== ''
@@ -149,11 +128,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-50 flex flex-col">
+    <div className="min-h-screen bg-[#FFF1F2] flex flex-col">
       {/* Barre de progression */}
-      <div className="fixed top-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div className="fixed top-0 left-0 right-0 h-1.5 bg-[#FDA4AF]/30 z-50">
         <div 
-          className="h-1 bg-teal-500 transition-all duration-500"
+          className="h-full bg-gradient-to-r from-[#FB7185] to-[#FDA4AF] transition-all duration-500 rounded-r-full"
           style={{ width: `${(etape / totalEtapes) * 100}%` }}
         />
       </div>
@@ -163,29 +142,33 @@ export default function OnboardingPage() {
         {etape > 1 ? (
           <button 
             onClick={prevEtape}
-            className="text-teal-600 font-medium"
+            className="flex items-center gap-2 text-[#FB7185] font-medium"
           >
-            ← Retour
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Retour
           </button>
         ) : (
           <div />
         )}
-        <span className="text-sm text-gray-400">{etape}/{totalEtapes}</span>
+        <span className="text-sm text-slate-400 font-medium">{etape}/{totalEtapes}</span>
       </header>
 
       {/* Contenu principal */}
-      <main className="flex-1 flex flex-col justify-center px-6 pb-24 overflow-y-auto">
+      <main className="flex-1 flex flex-col justify-center px-6 pb-28 overflow-y-auto">
         
         {/* ÉTAPE 1 : Prénom + Photo */}
         {etape === 1 && (
-          <div className="space-y-8 animate-fadeIn">
+          <div className="space-y-8 animate-fadeIn max-w-md mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">👋</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Salut !
+              <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-3xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-4xl">👋</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-2">
+                Bienvenue sur CeSuCare
               </h1>
-              <p className="text-lg text-gray-600">
-                Bienvenue sur CeSuCare.<br />
+              <p className="text-slate-500">
                 On fait connaissance ?
               </p>
             </div>
@@ -197,17 +180,20 @@ export default function OnboardingPage() {
                   <img 
                     src={form.photo} 
                     alt="Ta photo" 
-                    className="w-32 h-32 rounded-full object-cover border-4 border-teal-200"
+                    className="w-28 h-28 rounded-3xl object-cover ring-4 ring-[#FDA4AF]/30 shadow-lg"
                   />
                 ) : (
-                  <div className="w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center border-4 border-dashed border-gray-300">
-                    <span className="text-4xl">📷</span>
+                  <div className="w-28 h-28 rounded-3xl bg-white flex items-center justify-center border-2 border-dashed border-[#FDA4AF] shadow-sm">
+                    <svg className="w-10 h-10 text-[#FDA4AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
                   </div>
                 )}
                 {form.photo && (
                   <button
                     onClick={() => updateForm('photo', '')}
-                    className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full text-sm"
+                    className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-xl text-sm shadow-lg"
                   >
                     ✕
                   </button>
@@ -222,39 +208,31 @@ export default function OnboardingPage() {
                 className="hidden"
               />
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200"
-                >
-                  📁 Choisir une photo
-                </button>
-                <button
-                  onClick={handleTakePhoto}
-                  className="px-4 py-2 bg-teal-100 rounded-lg text-sm font-medium text-teal-700 hover:bg-teal-200"
-                >
-                  📸 Prendre une photo
-                </button>
-              </div>
-              <p className="text-xs text-gray-400">Optionnel — Tu pourras l'ajouter plus tard</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2 bg-white rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 shadow-sm border border-slate-200"
+              >
+                {form.photo ? 'Changer la photo' : 'Ajouter une photo'}
+              </button>
+              <p className="text-xs text-slate-400">Optionnel</p>
             </div>
 
             {/* Prénom / Nom */}
-            <div className="space-y-4 max-w-md mx-auto w-full">
+            <div className="space-y-3">
               <input
                 type="text"
                 value={form.prenom}
                 onChange={(e) => updateForm('prenom', e.target.value)}
                 placeholder="Ton prénom *"
                 autoFocus
-                className="w-full px-6 py-4 text-xl border-2 border-gray-200 rounded-2xl focus:border-teal-500 focus:outline-none text-center"
+                className="w-full px-5 py-4 text-lg bg-white border-2 border-slate-200 rounded-2xl focus:border-[#FB7185] focus:outline-none text-center font-medium placeholder-slate-300"
               />
               <input
                 type="text"
                 value={form.nom}
                 onChange={(e) => updateForm('nom', e.target.value)}
                 placeholder="Ton nom"
-                className="w-full px-6 py-4 text-xl border-2 border-gray-200 rounded-2xl focus:border-teal-500 focus:outline-none text-center"
+                className="w-full px-5 py-4 text-lg bg-white border-2 border-slate-200 rounded-2xl focus:border-[#FB7185] focus:outline-none text-center font-medium placeholder-slate-300"
               />
             </div>
           </div>
@@ -262,67 +240,70 @@ export default function OnboardingPage() {
 
         {/* ÉTAPE 2 : Coordonnées */}
         {etape === 2 && (
-          <div className="space-y-8 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn max-w-md mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">📱</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-3xl">📱</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">
                 Enchanté {form.prenom} !
               </h1>
-              <p className="text-lg text-gray-600">
-                Comment on peut te joindre ?
-              </p>
+              <p className="text-slate-500">Comment te joindre ?</p>
             </div>
 
-            <div className="space-y-4 max-w-md mx-auto w-full">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">Téléphone</label>
+            <div className="space-y-3">
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-1">Téléphone</label>
                 <input
                   type="tel"
                   value={form.telephone}
                   onChange={(e) => updateForm('telephone', e.target.value)}
                   placeholder="06 12 34 56 78"
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">Email</label>
+              
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-1">Email</label>
                 <input
                   type="email"
                   value={form.email}
                   onChange={(e) => updateForm('email', e.target.value)}
                   placeholder="ton.email@exemple.fr"
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">Adresse</label>
+
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-1">Adresse</label>
                 <input
                   type="text"
                   value={form.adresse}
                   onChange={(e) => updateForm('adresse', e.target.value)}
                   placeholder="12 rue des Lilas"
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">Ville</label>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Ville</label>
                   <input
                     type="text"
                     value={form.ville}
                     onChange={(e) => updateForm('ville', e.target.value)}
                     placeholder="Paris"
-                    className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">Code postal</label>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Code postal</label>
                   <input
                     type="text"
                     value={form.codePostal}
                     onChange={(e) => updateForm('codePostal', e.target.value)}
                     placeholder="75012"
-                    className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                    className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                   />
                 </div>
               </div>
@@ -330,66 +311,58 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ÉTAPE 3 : Infos administratives + CESU */}
+        {/* ÉTAPE 3 : Infos administratives */}
         {etape === 3 && (
-          <div className="space-y-8 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn max-w-md mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">📋</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Quelques infos pratiques
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-3xl">📋</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">
+                Infos pratiques
               </h1>
-              <p className="text-lg text-gray-600">
-                Pour tes futurs contrats, on a besoin de ça :
-              </p>
+              <p className="text-slate-500">Pour tes futurs contrats</p>
             </div>
 
-            <div className="space-y-4 max-w-md mx-auto w-full">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">Date de naissance</label>
+            <div className="space-y-3">
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-1">Date de naissance</label>
                 <input
                   type="date"
                   value={form.dateNaissance}
                   onChange={(e) => updateForm('dateNaissance', e.target.value)}
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  className="w-full text-slate-800 font-medium focus:outline-none"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">
-                  N° Sécurité sociale
-                  <span className="text-gray-400 font-normal"> (sur ta carte Vitale)</span>
-                </label>
+
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-1">N° Sécurité sociale</label>
                 <input
                   type="text"
                   value={form.numeroSecu}
                   onChange={(e) => updateForm('numeroSecu', e.target.value)}
                   placeholder="2 85 12 75 108 234 56"
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">
-                  N° CESU
-                  <span className="text-gray-400 font-normal"> (si tu en as déjà un)</span>
-                </label>
+
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-1">N° CESU (optionnel)</label>
                 <input
                   type="text"
                   value={form.numeroCesu}
                   onChange={(e) => updateForm('numeroCesu', e.target.value)}
-                  placeholder="Optionnel"
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none"
+                  placeholder="Si tu en as déjà un"
+                  className="w-full text-slate-800 font-medium focus:outline-none placeholder-slate-300"
                 />
-                <p className="text-xs text-gray-400 mt-1 ml-2">
-                  💡 C'est le numéro que l'URSSAF t'a donné si tu t'es déjà inscrit(e) au CESU
-                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">
-                  Ton expérience
-                </label>
+
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                <label className="block text-xs font-medium text-slate-400 mb-2">Ton expérience</label>
                 <select
                   value={form.experience}
                   onChange={(e) => updateForm('experience', e.target.value)}
-                  className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none bg-white"
+                  className="w-full text-slate-800 font-medium focus:outline-none bg-transparent"
                 >
                   <option value="">Choisis...</option>
                   <option value="debutant">Je débute dans le métier</option>
@@ -398,110 +371,106 @@ export default function OnboardingPage() {
                   <option value="5ans+">Plus de 5 ans d'expérience</option>
                 </select>
               </div>
+            </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-                <strong>🔒 Tes données sont en sécurité</strong>
-                <p className="mt-1 text-blue-600">On les utilise uniquement pour pré-remplir tes contrats. Rien n'est partagé sans ton accord.</p>
-              </div>
+            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+              <p className="text-sm text-blue-800 font-medium">🔒 Tes données sont en sécurité</p>
+              <p className="text-xs text-blue-600 mt-1">Uniquement utilisées pour pré-remplir tes contrats.</p>
             </div>
           </div>
         )}
 
         {/* ÉTAPE 4 : Diplômes */}
         {etape === 4 && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn max-w-md mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">🎓</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Tes diplômes & formations
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-3xl">🎓</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">
+                Tes diplômes
               </h1>
-              <p className="text-lg text-gray-600">
-                Sélectionne ceux que tu as obtenus
-              </p>
+              <p className="text-slate-500">Sélectionne ceux que tu as</p>
             </div>
 
-            <div className="space-y-2 max-w-md mx-auto w-full max-h-[40vh] overflow-y-auto">
+            <div className="space-y-2 max-h-[40vh] overflow-y-auto">
               {DIPLOMES.map(diplome => (
                 <button
                   key={diplome.id}
                   onClick={() => toggleDiplome(diplome.id)}
-                  className={`w-full p-3 rounded-xl border-2 text-left transition ${
+                  className={`w-full p-4 rounded-2xl text-left transition-all ${
                     form.diplomes.includes(diplome.id)
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'bg-[#FB7185] text-white shadow-lg shadow-[#FB7185]/25'
+                      : 'bg-white border border-slate-100 shadow-sm hover:border-[#FDA4AF]'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
-                      form.diplomes.includes(diplome.id)
-                        ? 'bg-teal-500 text-white'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}>
-                      {form.diplomes.includes(diplome.id) ? '✓' : ''}
-                    </span>
-                    <div>
-                      <p className="font-medium text-gray-900">{diplome.label}</p>
-                      <p className="text-xs text-gray-500">{diplome.desc}</p>
-                    </div>
-                  </div>
+                  <p className={`font-medium ${form.diplomes.includes(diplome.id) ? 'text-white' : 'text-slate-800'}`}>
+                    {diplome.label}
+                  </p>
+                  <p className={`text-xs mt-0.5 ${form.diplomes.includes(diplome.id) ? 'text-white/80' : 'text-slate-400'}`}>
+                    {diplome.desc}
+                  </p>
                 </button>
               ))}
             </div>
 
-            <div className="max-w-md mx-auto w-full">
-              <label className="block text-sm font-medium text-gray-500 mb-1 ml-2">
-                Autres formations ou certifications
-              </label>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+              <label className="block text-xs font-medium text-slate-400 mb-2">Autres formations</label>
               <textarea
                 value={form.autresDiplomes}
                 onChange={(e) => updateForm('autresDiplomes', e.target.value)}
-                placeholder="Ex: Formation Alzheimer, Gestes et postures, Permis B..."
-                rows={3}
-                className="w-full px-5 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:outline-none resize-none"
+                placeholder="Formation Alzheimer, Permis B..."
+                rows={2}
+                className="w-full text-slate-800 focus:outline-none placeholder-slate-300 resize-none"
               />
             </div>
 
-            <div className="max-w-md mx-auto">
-              <p className="text-sm text-gray-500 text-center">
-                💡 Pas de diplôme ? Pas de souci ! L'expérience compte aussi.
-              </p>
-            </div>
+            <p className="text-sm text-slate-400 text-center">
+              💡 Pas de diplôme ? Pas de souci, l'expérience compte aussi !
+            </p>
           </div>
         )}
 
         {/* ÉTAPE 5 : Type d'activité */}
         {etape === 5 && (
-          <div className="space-y-8 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn max-w-md mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">💼</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Qu'est-ce que tu recherches ?
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-3xl">💼</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">
+                Tes missions
               </h1>
-              <p className="text-lg text-gray-600">
-                Sélectionne les types de missions qui t'intéressent
-              </p>
+              <p className="text-slate-500">Qu'est-ce qui t'intéresse ?</p>
             </div>
 
-            <div className="space-y-3 max-w-md mx-auto w-full">
+            <div className="space-y-2">
               {TYPES_ACTIVITE.map(type => (
                 <button
                   key={type.id}
                   onClick={() => toggleActivite(type.id)}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition ${
+                  className={`w-full p-4 rounded-2xl text-left transition-all flex items-center gap-4 ${
                     form.typeActivite.includes(type.id)
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'bg-[#FB7185] text-white shadow-lg shadow-[#FB7185]/25'
+                      : 'bg-white border border-slate-100 shadow-sm hover:border-[#FDA4AF]'
                   }`}
                 >
-                  <p className="font-medium text-gray-900">{type.label}</p>
-                  <p className="text-sm text-gray-500">{type.desc}</p>
+                  <span className="text-2xl">{type.icon}</span>
+                  <div>
+                    <p className={`font-medium ${form.typeActivite.includes(type.id) ? 'text-white' : 'text-slate-800'}`}>
+                      {type.label}
+                    </p>
+                    <p className={`text-xs ${form.typeActivite.includes(type.id) ? 'text-white/80' : 'text-slate-400'}`}>
+                      {type.desc}
+                    </p>
+                  </div>
                 </button>
               ))}
             </div>
 
-            <div className="max-w-md mx-auto w-full">
-              <label className="block text-sm font-medium text-gray-500 mb-2">
-                💰 Salaire minimum souhaité (net/heure)
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+              <label className="block text-sm font-medium text-slate-600 mb-3">
+                💰 Salaire minimum souhaité
               </label>
               <div className="flex items-center gap-4">
                 <input
@@ -510,68 +479,68 @@ export default function OnboardingPage() {
                   max={25}
                   value={form.salaireMinimum}
                   onChange={(e) => updateForm('salaireMinimum', Number(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                  className="flex-1 h-2 bg-[#FDA4AF]/30 rounded-lg appearance-none cursor-pointer accent-[#FB7185]"
                 />
-                <span className="text-2xl font-bold text-teal-600 w-20 text-right">
+                <span className="text-2xl font-bold text-[#FB7185] w-20 text-right">
                   {form.salaireMinimum}€/h
                 </span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">SMIC 2025 : ~9,27€ net/h</p>
+              <p className="text-xs text-slate-400 mt-2">SMIC 2025 : ~9,27€ net/h</p>
             </div>
           </div>
         )}
 
         {/* ÉTAPE 6 : Disponibilités */}
         {etape === 6 && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn max-w-lg mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">📅</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-3xl">📅</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">
                 Tes disponibilités
               </h1>
-              <p className="text-lg text-gray-600">
-                Quand es-tu généralement disponible ?
-              </p>
+              <p className="text-slate-500">Quand es-tu libre ?</p>
             </div>
 
-            <div className="max-w-lg mx-auto w-full overflow-x-auto">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
                     <th className="p-2"></th>
                     <th className="p-2 text-center">
-                      <span className="text-xl">🌅</span>
-                      <p className="text-xs text-gray-500">Matin</p>
+                      <span className="text-lg">🌅</span>
+                      <p className="text-[10px] text-slate-400 mt-1">Matin</p>
                     </th>
                     <th className="p-2 text-center">
-                      <span className="text-xl">☀️</span>
-                      <p className="text-xs text-gray-500">Après-midi</p>
+                      <span className="text-lg">☀️</span>
+                      <p className="text-[10px] text-slate-400 mt-1">Après-midi</p>
                     </th>
                     <th className="p-2 text-center">
-                      <span className="text-xl">🌆</span>
-                      <p className="text-xs text-gray-500">Soir</p>
+                      <span className="text-lg">🌆</span>
+                      <p className="text-[10px] text-slate-400 mt-1">Soir</p>
                     </th>
                     <th className="p-2 text-center">
-                      <span className="text-xl">🌙</span>
-                      <p className="text-xs text-gray-500">Nuit</p>
+                      <span className="text-lg">🌙</span>
+                      <p className="text-[10px] text-slate-400 mt-1">Nuit</p>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {form.disponibilites.map((dispo, index) => (
-                    <tr key={dispo.jour} className="border-t border-gray-100">
-                      <td className="p-2 font-medium text-gray-700">{dispo.jour.slice(0, 3)}</td>
+                    <tr key={dispo.jour}>
+                      <td className="p-2 font-medium text-slate-600 text-sm">{dispo.jour.slice(0, 3)}</td>
                       {(['matin', 'apresMidi', 'soir', 'nuit'] as const).map(moment => (
-                        <td key={moment} className="p-2 text-center">
+                        <td key={moment} className="p-1 text-center">
                           <button
                             onClick={() => toggleDispo(index, moment)}
-                            className={`w-10 h-10 rounded-lg transition ${
+                            className={`w-10 h-10 rounded-xl transition-all ${
                               dispo[moment]
-                                ? 'bg-teal-500 text-white'
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                ? 'bg-[#FB7185] text-white shadow-md'
+                                : 'bg-slate-100 text-slate-300 hover:bg-[#FDA4AF]/20'
                             }`}
                           >
-                            {dispo[moment] ? '✓' : ''}
+                            {dispo[moment] && '✓'}
                           </button>
                         </td>
                       ))}
@@ -581,115 +550,107 @@ export default function OnboardingPage() {
               </table>
             </div>
 
-            <div className="max-w-md mx-auto text-center">
-              <p className="text-sm text-gray-500">
-                💡 Pas de panique, tu pourras modifier ça plus tard !
-              </p>
-            </div>
+            <p className="text-sm text-slate-400 text-center">
+              💡 Tu pourras modifier ça plus tard !
+            </p>
           </div>
         )}
 
         {/* ÉTAPE 7 : CGV / RGPD */}
         {etape === 7 && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-6 animate-fadeIn max-w-md mx-auto w-full">
             <div className="text-center">
-              <span className="text-6xl mb-4 block">✅</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FB7185]/20">
+                <span className="text-3xl">✅</span>
+              </div>
+              <h1 className="text-2xl font-bold text-slate-800 mb-1">
                 Dernière étape !
               </h1>
-              <p className="text-lg text-gray-600">
-                Pour utiliser CeSuCare, merci d'accepter nos conditions
-              </p>
+              <p className="text-slate-500">Accepte nos conditions</p>
             </div>
 
-            <div className="max-w-md mx-auto w-full space-y-4">
-              {/* CGV */}
-              <div className="bg-white border-2 border-gray-200 rounded-xl p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.cgvAcceptees}
-                    onChange={(e) => updateForm('cgvAcceptees', e.target.checked)}
-                    className="w-6 h-6 rounded border-gray-300 text-teal-600 focus:ring-teal-500 mt-0.5"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      J'accepte les Conditions Générales d'Utilisation *
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      En utilisant CeSuCare, tu acceptes nos{' '}
-                      <a href="#" className="text-teal-600 underline">CGU</a>
-                      {' '}qui définissent les règles d'utilisation de l'application.
-                    </p>
-                  </div>
-                </label>
-              </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => updateForm('cgvAcceptees', !form.cgvAcceptees)}
+                className={`w-full p-4 rounded-2xl text-left transition-all flex items-start gap-4 ${
+                  form.cgvAcceptees
+                    ? 'bg-[#FB7185] text-white shadow-lg'
+                    : 'bg-white border border-slate-200 shadow-sm'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  form.cgvAcceptees ? 'bg-white/20' : 'bg-slate-100'
+                }`}>
+                  {form.cgvAcceptees && <span className="text-white text-sm">✓</span>}
+                </div>
+                <div>
+                  <p className={`font-medium ${form.cgvAcceptees ? 'text-white' : 'text-slate-800'}`}>
+                    J'accepte les CGU *
+                  </p>
+                  <p className={`text-xs mt-1 ${form.cgvAcceptees ? 'text-white/80' : 'text-slate-400'}`}>
+                    Les règles d'utilisation de l'application
+                  </p>
+                </div>
+              </button>
 
-              {/* RGPD */}
-              <div className="bg-white border-2 border-gray-200 rounded-xl p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.rgpdAcceptee}
-                    onChange={(e) => updateForm('rgpdAcceptee', e.target.checked)}
-                    className="w-6 h-6 rounded border-gray-300 text-teal-600 focus:ring-teal-500 mt-0.5"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      J'accepte la politique de confidentialité *
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Tes données personnelles sont protégées conformément au RGPD.{' '}
-                      <a href="#" className="text-teal-600 underline">En savoir plus</a>
-                    </p>
-                  </div>
-                </label>
-              </div>
+              <button
+                onClick={() => updateForm('rgpdAcceptee', !form.rgpdAcceptee)}
+                className={`w-full p-4 rounded-2xl text-left transition-all flex items-start gap-4 ${
+                  form.rgpdAcceptee
+                    ? 'bg-[#FB7185] text-white shadow-lg'
+                    : 'bg-white border border-slate-200 shadow-sm'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  form.rgpdAcceptee ? 'bg-white/20' : 'bg-slate-100'
+                }`}>
+                  {form.rgpdAcceptee && <span className="text-white text-sm">✓</span>}
+                </div>
+                <div>
+                  <p className={`font-medium ${form.rgpdAcceptee ? 'text-white' : 'text-slate-800'}`}>
+                    J'accepte la politique de confidentialité *
+                  </p>
+                  <p className={`text-xs mt-1 ${form.rgpdAcceptee ? 'text-white/80' : 'text-slate-400'}`}>
+                    Protection de tes données (RGPD)
+                  </p>
+                </div>
+              </button>
+            </div>
 
-              {/* Résumé */}
-              <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
-                <p className="text-sm text-teal-800">
-                  <strong>🔒 En résumé :</strong>
-                </p>
-                <ul className="text-sm text-teal-700 mt-2 space-y-1">
-                  <li>• Tes données restent confidentielles</li>
-                  <li>• Elles servent uniquement à pré-remplir tes documents</li>
-                  <li>• Tu peux les modifier ou supprimer à tout moment</li>
-                  <li>• On ne vend jamais tes infos à personne</li>
-                </ul>
-              </div>
+            <div className="bg-[#FFF1F2] rounded-2xl p-4 border border-[#FDA4AF]/30">
+              <p className="text-sm text-[#FB7185] font-medium">🔒 En résumé</p>
+              <ul className="text-xs text-slate-600 mt-2 space-y-1">
+                <li>• Tes données restent confidentielles</li>
+                <li>• On ne vend jamais tes infos</li>
+                <li>• Tu peux tout modifier ou supprimer</li>
+              </ul>
             </div>
           </div>
         )}
       </main>
 
       {/* Bouton suivant */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-lg border-t border-slate-100">
         <div className="max-w-md mx-auto">
           <button
             onClick={nextEtape}
             disabled={!canContinue()}
-            className={`w-full py-4 rounded-xl font-bold text-lg transition ${
+            className={`w-full py-4 rounded-2xl font-bold text-lg transition-all ${
               !canContinue()
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-teal-600 text-white hover:bg-teal-700 shadow-lg'
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-[#FB7185] to-[#FDA4AF] text-white shadow-lg shadow-[#FB7185]/25 hover:shadow-xl'
             }`}
           >
-            {etape === totalEtapes ? (
-              <>C'est parti ! 🚀</>
-            ) : (
-              <>Continuer</>
-            )}
+            {etape === totalEtapes ? "C'est parti ! 🚀" : 'Continuer'}
           </button>
           {etape === 7 && !canContinue() && (
-            <p className="text-center text-sm text-red-500 mt-2">
-              Tu dois accepter les deux conditions pour continuer
+            <p className="text-center text-xs text-red-500 mt-2">
+              Accepte les deux conditions pour continuer
             </p>
           )}
         </div>
       </div>
 
-      {/* Animation CSS */}
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
