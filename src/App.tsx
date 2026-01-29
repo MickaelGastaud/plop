@@ -12,10 +12,10 @@ import CarnetPage from './pages/CarnetPage'
 import CarnetGlobalPage from './pages/CarnetGlobalPage'
 import DevisPage from './pages/DevisPage'
 import ContratPage from './pages/ContratPage'
-import ProfilEditPage from './pages/ProfilEditPage'
 import ProfilPublicPage from './pages/ProfilPublicPage'
 import BadgesPage from './pages/BadgesPage'
 import DocumentsPage from './pages/DocumentsPage'
+import ProfilPage from './pages/ProfilPage'
 
 function App() {
   return (
@@ -48,8 +48,8 @@ function App() {
         <Route path="/contrat" element={<ProtectedRoute><ContratPage /></ProtectedRoute>} />
         
         {/* Profil */}
-        <Route path="/profil" element={<ProtectedRoute><ProfilEditPage /></ProtectedRoute>} />
         <Route path="/badges" element={<ProtectedRoute><BadgesPage /></ProtectedRoute>} />
+        <Route path="/profil" element={<ProfilPage />} />
       </Routes>
     </BrowserRouter>
   )

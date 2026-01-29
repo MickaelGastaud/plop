@@ -11,7 +11,7 @@ export default function BottomNav() {
               to="/planning"
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all ${
-                  isActive ? 'text-slate-800' : 'text-slate-400'
+                  isActive ? 'text-[#FB7185]' : 'text-slate-400'
                 }`
               }
             >
@@ -29,7 +29,7 @@ export default function BottomNav() {
               to="/beneficiaires"
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all ${
-                  isActive ? 'text-slate-800' : 'text-slate-400'
+                  isActive ? 'text-[#FB7185]' : 'text-slate-400'
                 }`
               }
             >
@@ -50,7 +50,7 @@ export default function BottomNav() {
               {({ isActive }) => (
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
                   isActive 
-                    ? 'bg-slate-800 shadow-xl shadow-slate-400/30' 
+                    ? 'bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] shadow-xl shadow-[#FB7185]/30' 
                     : 'bg-slate-100 shadow-lg'
                 }`}>
                   <svg className={`w-6 h-6 ${isActive ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -64,7 +64,7 @@ export default function BottomNav() {
               to="/carnet"
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all ${
-                  isActive ? 'text-slate-800' : 'text-slate-400'
+                  isActive ? 'text-[#FB7185]' : 'text-slate-400'
                 }`
               }
             >
@@ -82,7 +82,7 @@ export default function BottomNav() {
               to="/profil"
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all ${
-                  isActive ? 'text-slate-800' : 'text-slate-400'
+                  isActive ? 'text-[#FB7185]' : 'text-slate-400'
                 }`
               }
             >

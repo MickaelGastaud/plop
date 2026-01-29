@@ -40,26 +40,31 @@ export default function BeneficiairesPage() {
   const avatarColors = ['bg-indigo-500', 'bg-pink-500', 'bg-cyan-500', 'bg-orange-500', 'bg-violet-500']
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white pb-24">
+    <div className="min-h-screen bg-[#FFF1F2] pb-24">
       {/* Header */}
-      <header className="bg-white px-6 pt-14 pb-6 shadow-sm">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">Bénéficiaires</h1>
-              <p className="text-slate-400 text-sm mt-1">
-                {nbActifs} actif{nbActifs > 1 ? 's' : ''} · {heuresTotal.toFixed(0)}h/semaine
-              </p>
-            </div>
-            <div className="bg-slate-800 text-white px-4 py-2 rounded-xl text-right">
-              <p className="text-lg font-bold">{(revenuTotal * 4).toFixed(0)}€</p>
-              <p className="text-slate-400 text-xs">par mois</p>
+      <header className="relative h-44 overflow-hidden">
+        {/* Image de fond optionnelle ou gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FB7185] via-[#FDA4AF] to-[#FDA4AF]" />
+        
+        <div className="absolute inset-0 px-6 pt-14 pb-6">
+          <div className="max-w-lg mx-auto relative z-10">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Bénéficiaires</h1>
+                <p className="text-white/70 text-sm mt-1">
+                  {nbActifs} actif{nbActifs > 1 ? 's' : ''} · {heuresTotal.toFixed(0)}h/semaine
+                </p>
+              </div>
+              <div className="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-right ring-1 ring-white/30">
+                <p className="text-lg font-bold">{(revenuTotal * 4).toFixed(0)}€</p>
+                <p className="text-white/70 text-xs">par mois</p>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-5 space-y-4">
+      <main className="max-w-lg mx-auto px-4 -mt-12 py-5 space-y-4 relative z-10">
         {/* Recherche */}
         <div className="relative">
           <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,7 +91,7 @@ export default function BeneficiairesPage() {
               onClick={() => setFiltre(f.key as typeof filtre)}
               className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 filtre === f.key
-                  ? 'bg-slate-800 text-white shadow-lg shadow-slate-300/30'
+                  ? 'bg-gradient-to-r from-[#FB7185] to-[#FDA4AF] text-white shadow-lg shadow-[#FB7185]/25'
                   : 'bg-white text-slate-500 shadow-sm hover:shadow-md border border-slate-100'
               }`}
             >
@@ -166,7 +171,7 @@ export default function BeneficiairesPage() {
       {/* FAB */}
       <Link
         to="/beneficiaires/nouveau"
-        className="fixed bottom-24 right-5 w-14 h-14 bg-slate-800 text-white rounded-2xl shadow-xl shadow-slate-400/30 flex items-center justify-center hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all z-40"
+        className="fixed bottom-24 right-5 w-14 h-14 bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] text-white rounded-2xl shadow-xl shadow-[#FB7185]/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40"
       >
         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

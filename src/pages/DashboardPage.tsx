@@ -44,7 +44,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-[#FFF1F2] pb-24">
       {/* Header avec image de fond */}
       <header className="relative h-48 overflow-hidden">
         {/* Image de fond */}
@@ -53,26 +53,26 @@ export default function DashboardPage() {
           alt="" 
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/40" />
+        {/* Overlay gradient ton pêche */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#FB7185]/90 via-[#FDA4AF]/60 to-[#FDA4AF]/30" />
         
         <div className="absolute inset-0 px-6 pt-14 pb-6">
           <div className="max-w-lg mx-auto h-full flex items-start justify-between">
             <div>
-              <p className="text-white/70 text-sm font-medium">Bonjour</p>
-              <h1 className="text-2xl font-bold text-white">{profil.prenom || 'Sarah'}</h1>
+              <p className="text-white/80 text-sm font-medium">Bonjour</p>
+              <h1 className="text-2xl font-bold text-white drop-shadow-sm">{profil.prenom || 'Sarah'}</h1>
             </div>
             <Link to="/profil" className="relative group">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden ring-2 ring-white/30 group-hover:ring-white/50 transition-all">
+              <div className="w-12 h-12 rounded-2xl bg-white/25 backdrop-blur-sm flex items-center justify-center overflow-hidden ring-2 ring-white/40 group-hover:ring-white/60 transition-all">
                 {profil.photo ? (
                   <img src={profil.photo} alt="" className="w-12 h-12 object-cover" />
                 ) : (
-                  <span className="text-white font-semibold text-lg">
+                  <span className="text-white font-semibold text-lg drop-shadow-sm">
                     {profil.prenom?.[0]?.toUpperCase() || 'S'}
                   </span>
                 )}
               </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#FB7185]" />
             </Link>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function DashboardPage() {
               <p className="text-4xl font-bold text-slate-800">{(revenuHebdo * 4).toFixed(0)} <span className="text-2xl text-slate-300">€</span></p>
               <p className="text-slate-400 text-sm mt-1">par mois</p>
             </div>
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200/50">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] flex items-center justify-center shadow-lg shadow-[#FB7185]/30">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -116,21 +116,21 @@ export default function DashboardPage() {
         {prochainRdv && (
           <Link 
             to="/planning"
-            className="block bg-slate-800 rounded-2xl p-4 shadow-xl shadow-slate-300/30 hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+            className="block bg-gradient-to-r from-[#FB7185] to-[#FDA4AF] rounded-2xl p-4 shadow-lg shadow-[#FB7185]/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="flex-1">
-                <p className="text-slate-400 text-sm">Prochain rendez-vous</p>
+                <p className="text-white/80 text-sm">Prochain rendez-vous</p>
                 <p className="text-white font-semibold">{prochainRdv.jour} · {prochainRdv.heure}</p>
               </div>
               <div className="text-right">
                 <p className="text-white font-medium">{prochainRdv.beneficiaire.prenom}</p>
-                <p className="text-slate-400 text-sm">{prochainRdv.beneficiaire.ville}</p>
+                <p className="text-white/70 text-sm">{prochainRdv.beneficiaire.ville}</p>
               </div>
             </div>
           </Link>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
         <section>
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes bénéficiaires</h2>
-            <Link to="/beneficiaires" className="text-sm text-teal-600 font-medium hover:text-teal-700">
+            <Link to="/beneficiaires" className="text-sm text-[#FB7185] font-medium hover:text-[#F43F5E]">
               Tout voir
             </Link>
           </div>
@@ -224,7 +224,7 @@ export default function DashboardPage() {
               <p className="text-slate-500 mb-4">Ajoutez votre premier bénéficiaire</p>
               <Link
                 to="/beneficiaires/nouveau"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-700 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FB7185] to-[#FDA4AF] text-white rounded-xl font-medium hover:shadow-lg transition-all"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -239,7 +239,7 @@ export default function DashboardPage() {
         <section>
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cette semaine</h2>
-            <Link to="/planning" className="text-sm text-teal-600 font-medium hover:text-teal-700">
+            <Link to="/planning" className="text-sm text-[#FB7185] font-medium hover:text-[#F43F5E]">
               Planning
             </Link>
           </div>
@@ -260,15 +260,15 @@ export default function DashboardPage() {
                 
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center">
-                    <span className={`text-xs mb-2 font-medium ${isToday ? 'text-teal-600' : 'text-slate-400'}`}>
+                    <span className={`text-xs mb-2 font-medium ${isToday ? 'text-[#FB7185]' : 'text-slate-400'}`}>
                       {jour}
                     </span>
                     <div 
                       className={`w-full aspect-square max-w-[44px] rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
                         heuresJour > 0 
-                          ? 'bg-slate-800 text-white shadow-lg' 
+                          ? 'bg-gradient-to-br from-[#FB7185] to-[#FDA4AF] text-white shadow-lg' 
                           : isToday 
-                          ? 'bg-teal-50 text-teal-600 ring-2 ring-teal-200' 
+                          ? 'bg-[#FDA4AF]/20 text-[#FB7185] ring-2 ring-[#FB7185]/30' 
                           : 'bg-slate-100 text-slate-300'
                       }`}
                     >
